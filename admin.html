@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel | Shree Balaji Oil Agency</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+:root{
+  --red:#F21D44;
+  --green:#03A64A;
+}
+body{
+  margin:0;
+  font-family:Arial;
+  background:#f7f7f7;
+}
+header{
+  background:var(--green);
+  color:#fff;
+  text-align:center;
+  padding:14px;
+  font-size:20px;
+  font-weight:bold;
+}
+.box{
+  background:#fff;
+  margin:12px;
+  padding:12px;
+  border-radius:10px;
+}
+input,button{
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+}
+button{
+  border:none;
+  border-radius:6px;
+  background:var(--green);
+  color:#fff;
+  cursor:pointer;
+}
+.logout{background:var(--red)}
+.product{
+  border-bottom:1px solid #ddd;
+  padding:8px 0;
+}
+.product img{
+  width:80px;
+  height:80px;
+  object-fit:cover;
+  border-radius:6px;
+}
+.delete{
+  background:var(--red);
+  margin-top:6px;
+}
+.orders{
+  display:none;
+}
+.order-card{
+  background:#fff;
+  margin:8px;
+  padding:10px;
+  border-radius:8px;
+  box-shadow:0 2px 5px rgba(0,0,0,.1);
+}
+</style>
+</head>
+
+<body>
+
+<header>Admin Panel – Shree Balaji Oil Agency</header>
+
+<!-- LOGIN -->
+<div class="box" id="loginBox">
+  <h3>Admin Login</h3>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="adminLogin()">Login</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="box" id="adminPanel" style="display:none;">
+  <h3>Add Product</h3>
+  <input id="pname" placeholder="Product Name">
+  <input id="price" placeholder="Price">
+  <input id="mrp" placeholder="MRP">
+  <input type="file" id="image">
+  <button onclick="addProduct()">Add Product</button>
+
+  <hr>
+  <button onclick="showOrders()">View Orders</button>
+  <button class="logout" onclick="logout()">Logout</button>
+</div>
+
+<!-- PRODUCT LIST -->
+<div class="box" id="productList"></div>
+
+<!-- ORDERS -->
+<div class="orders" id="ordersBox"></div>
+
+<script>
+/* 🔥 Firebase Config */
+firebase.initializeApp({
+  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+  authDomain: "balajimere-c8eb9.firebaseapp.com",
+  projectId: "balajimere-c8eb9",
+  messagingSenderId: "354355662744",
+  appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed"
+});
+
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+/* ADMIN CREDENTIAL (LOCK) */
+const ADMIN_EMAIL = "balajimere.admin@gmail.com";
+const ADMIN_PASS  = "Balaji@631625";
+
+/* IMGBB */
+const IMGBB_API_KEY = "5e77bfe737324a6c147697a13fefcb3d";
+
+/* LOGIN */
+function adminLogin(){
+  if(email.value !== ADMIN_EMAIL || password.value !== ADMIN_PASS){
+    alert("Invalid Admin Credentials");
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email.value,password.value)
+  .catch(err=>{
+    // अगर user auth में नहीं है तो create
+    auth.createUserWithEmailAndPassword(email.value,password.value);
+  });
+}
+
+/* AUTH STATE */
+auth.onAuthStateChanged(user=>{
+  if(user && user.email===ADMIN_EMAIL){
+    loginBox.style.display="none";
+    adminPanel.style.display="block";
+    loadProducts();
+  }else{
+    loginBox.style.display="block";
+    adminPanel.style.display="none";
+  }
+});
+
+/* LOGOUT */
+function logout(){
+  auth.signOut();
+}
+
+/* ADD PRODUCT */
+function addProduct(){
+  const file=image.files[0];
+  if(!file){alert("Image select karo");return;}
+
+  const fd=new FormData();
+  fd.append("image",file);
+
+  fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`,{
+    method:"POST",body:fd
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    db.collection("products").add({
+      name:pname.value,
+      price:price.value,
+      mrp:mrp.value,
+      imageUrl:d.data.url,
+      createdAt:new Date()
+    });
+    alert("Product Added");
+  });
+}
+
+/* LOAD PRODUCTS */
+function loadProducts(){
+  db.collection("products").onSnapshot(snap=>{
+    productList.innerHTML="<h3>Products</h3>";
+    snap.forEach(doc=>{
+      const p=doc.data();
+      productList.innerHTML+=`
+        <div class="product">
+          <img src="${p.imageUrl}">
+          <b>${p.name}</b><br>
+          Price: ₹${p.price} | MRP: ₹${p.mrp}
+          <button class="delete" onclick="delProduct('${doc.id}')">Delete</button>
+        </div>
+      `;
+    });
+  });
+}
+
+/* DELETE PRODUCT */
+function delProduct(id){
+  if(confirm("Delete this product?")){
+    db.collection("products").doc(id).delete();
+  }
+}
+
+/* SHOW ORDERS */
+function showOrders(){
+  ordersBox.style.display="block";
+  ordersBox.innerHTML="<h3>Orders</h3>";
+
+  db.collection("orders").orderBy("time","desc")
+  .onSnapshot(snap=>{
+    ordersBox.innerHTML="<h3>Orders</h3>";
+    snap.forEach(doc=>{
+      const o=doc.data();
+      ordersBox.innerHTML+=`
+        <div class="order-card">
+          <b>Product:</b> ${o.product}<br>
+          <b>Name:</b> ${o.name}<br>
+          <b>Mobile:</b> ${o.mobile}<br>
+          <b>Qty:</b> ${o.qty}
+        </div>
+      `;
+    });
+  });
+}
+</script>
+
+</body>
+  </html>
