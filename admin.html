@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Admin Panel | Shree Balaji Oil Agency</title>
+<title>Admin Panel - Shree Balaji Oil Agency</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- Firebase -->
@@ -14,66 +14,16 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-:root{
-  --red:#F21D44;
-  --green:#03A64A;
-}
-body{
-  margin:0;
-  font-family:Arial;
-  background:#f7f7f7;
-}
-header{
-  background:var(--green);
-  color:#fff;
-  text-align:center;
-  padding:14px;
-  font-size:20px;
-  font-weight:bold;
-}
-.box{
-  background:#fff;
-  margin:12px;
-  padding:12px;
-  border-radius:10px;
-}
-input,button{
-  width:100%;
-  padding:10px;
-  margin-top:8px;
-}
-button{
-  border:none;
-  border-radius:6px;
-  background:var(--green);
-  color:#fff;
-  cursor:pointer;
-}
-.logout{background:var(--red)}
-.product{
-  border-bottom:1px solid #ddd;
-  padding:8px 0;
-}
-.product img{
-  width:80px;
-  height:80px;
-  object-fit:cover;
-  border-radius:6px;
-}
-.delete{
-  background:var(--red);
-  margin-top:6px;
-}
-.orders{
-  display:none;
-}
-.order-card{
-  background:#fff;
-  margin:8px;
-  padding:10px;
-  border-radius:8px;
-  box-shadow:0 2px 5px rgba(0,0,0,.1);
-}
+:root{--green:#03A64A;--red:#F21D44}
+body{margin:0;font-family:Arial;background:#f4f6f8}
+header{background:var(--green);color:#fff;padding:14px;text-align:center;font-size:20px;font-weight:bold}
+.container{padding:14px}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+input,textarea,button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
+button{border:none;background:var(--green);color:#fff;font-size:15px;cursor:pointer}
+button.red{background:var(--red)}
+.product{border-bottom:1px solid #eee;padding:8px 0}
+.small{font-size:13px;color:#666}
 </style>
 </head>
 
@@ -81,156 +31,133 @@ button{
 
 <header>Admin Panel – Shree Balaji Oil Agency</header>
 
+<div class="container">
+
 <!-- LOGIN -->
-<div class="box" id="loginBox">
+<div class="card" id="loginBox">
   <h3>Admin Login</h3>
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Password">
-  <button onclick="adminLogin()">Login</button>
+  <button onclick="login()">Login</button>
 </div>
 
-<!-- ADMIN PANEL -->
-<div class="box" id="adminPanel" style="display:none;">
-  <h3>Add Product</h3>
-  <input id="pname" placeholder="Product Name">
-  <input id="price" placeholder="Price">
-  <input id="mrp" placeholder="MRP">
-  <input type="file" id="image">
-  <button onclick="addProduct()">Add Product</button>
+<!-- ADMIN DASHBOARD -->
+<div id="dashboard" style="display:none">
 
-  <hr>
-  <button onclick="showOrders()">View Orders</button>
-  <button class="logout" onclick="logout()">Logout</button>
+  <div class="card">
+    <h3>Add Product</h3>
+    <input id="name" placeholder="Product Name">
+    <input id="price" placeholder="Price">
+    <input id="mrp" placeholder="MRP">
+    <textarea id="desc" placeholder="Product Description"></textarea>
+    <input type="file" id="images" multiple>
+    <button onclick="addProduct()">Add Product</button>
+  </div>
+
+  <div class="card">
+    <h3>Products</h3>
+    <div id="productList"></div>
+  </div>
+
+  <div class="card">
+    <h3>Orders</h3>
+    <div id="orders"></div>
+  </div>
+
+  <button class="red" onclick="logout()">Logout</button>
+
 </div>
-
-<!-- PRODUCT LIST -->
-<div class="box" id="productList"></div>
-
-<!-- ORDERS -->
-<div class="orders" id="ordersBox"></div>
+</div>
 
 <script>
-/* 🔥 Firebase Config */
 firebase.initializeApp({
   apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
   authDomain: "balajimere-c8eb9.firebaseapp.com",
   projectId: "balajimere-c8eb9",
+  storageBucket: "balajimere-c8eb9.appspot.com",
   messagingSenderId: "354355662744",
   appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed"
 });
 
-const db = firebase.firestore();
-const auth = firebase.auth();
-
-/* ADMIN CREDENTIAL (LOCK) */
-const ADMIN_EMAIL = "balajimere.admin@gmail.com";
-const ADMIN_PASS  = "Balaji@631625";
-
-/* IMGBB */
-const IMGBB_API_KEY = "5e77bfe737324a6c147697a13fefcb3d";
+const auth=firebase.auth();
+const db=firebase.firestore();
+const IMGBB="5e77bfe737324a6c147697a13fefcb3d";
 
 /* LOGIN */
-function adminLogin(){
-  if(email.value !== ADMIN_EMAIL || password.value !== ADMIN_PASS){
-    alert("Invalid Admin Credentials");
-    return;
-  }
-
-  auth.signInWithEmailAndPassword(email.value,password.value)
-  .catch(err=>{
-    // अगर user auth में नहीं है तो create
-    auth.createUserWithEmailAndPassword(email.value,password.value);
-  });
+function login(){
+ auth.signInWithEmailAndPassword(email.value,password.value);
 }
+function logout(){auth.signOut();}
 
-/* AUTH STATE */
-auth.onAuthStateChanged(user=>{
-  if(user && user.email===ADMIN_EMAIL){
-    loginBox.style.display="none";
-    adminPanel.style.display="block";
-    loadProducts();
-  }else{
-    loginBox.style.display="block";
-    adminPanel.style.display="none";
-  }
+auth.onAuthStateChanged(u=>{
+ if(u && u.email==="balajimere.admin@gmail.com"){
+   loginBox.style.display="none";
+   dashboard.style.display="block";
+   loadProducts(); loadOrders();
+ }else{
+   dashboard.style.display="none";
+   loginBox.style.display="block";
+ }
 });
 
-/* LOGOUT */
-function logout(){
-  auth.signOut();
-}
-
 /* ADD PRODUCT */
-function addProduct(){
-  const file=image.files[0];
-  if(!file){alert("Image select karo");return;}
-
-  const fd=new FormData();
-  fd.append("image",file);
-
-  fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`,{
-    method:"POST",body:fd
-  })
-  .then(r=>r.json())
-  .then(d=>{
-    db.collection("products").add({
-      name:pname.value,
-      price:price.value,
-      mrp:mrp.value,
-      imageUrl:d.data.url,
-      createdAt:new Date()
-    });
-    alert("Product Added");
-  });
+async function addProduct(){
+ let files=[...images.files];
+ let urls=[];
+ for(let f of files){
+  let fd=new FormData();
+  fd.append("image",f);
+  let r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB}`,{method:"POST",body:fd});
+  let j=await r.json();
+  urls.push(j.data.url);
+ }
+ db.collection("products").add({
+  name:name.value,
+  price:price.value,
+  mrp:mrp.value,
+  description:desc.value,
+  images:urls,
+  imageUrl:urls[0],
+  time:new Date()
+ });
+ alert("Product added");
 }
 
 /* LOAD PRODUCTS */
 function loadProducts(){
-  db.collection("products").onSnapshot(snap=>{
-    productList.innerHTML="<h3>Products</h3>";
-    snap.forEach(doc=>{
-      const p=doc.data();
-      productList.innerHTML+=`
-        <div class="product">
-          <img src="${p.imageUrl}">
-          <b>${p.name}</b><br>
-          Price: ₹${p.price} | MRP: ₹${p.mrp}
-          <button class="delete" onclick="delProduct('${doc.id}')">Delete</button>
-        </div>
-      `;
-    });
+ db.collection("products").onSnapshot(s=>{
+  productList.innerHTML="";
+  s.forEach(d=>{
+   let p=d.data();
+   productList.innerHTML+=`
+    <div class="product">
+      <b>${p.name}</b><br>
+      <span class="small">₹${p.price} / MRP ₹${p.mrp}</span>
+      <button class="red" onclick="del('${d.id}')">Delete</button>
+    </div>`;
   });
+ });
+}
+function del(id){
+ if(confirm("Delete product?"))
+  db.collection("products").doc(id).delete();
 }
 
-/* DELETE PRODUCT */
-function delProduct(id){
-  if(confirm("Delete this product?")){
-    db.collection("products").doc(id).delete();
-  }
-}
-
-/* SHOW ORDERS */
-function showOrders(){
-  ordersBox.style.display="block";
-  ordersBox.innerHTML="<h3>Orders</h3>";
-
-  db.collection("orders").orderBy("time","desc")
-  .onSnapshot(snap=>{
-    ordersBox.innerHTML="<h3>Orders</h3>";
-    snap.forEach(doc=>{
-      const o=doc.data();
-      ordersBox.innerHTML+=`
-        <div class="order-card">
-          <b>Product:</b> ${o.product}<br>
-          <b>Name:</b> ${o.name}<br>
-          <b>Mobile:</b> ${o.mobile}<br>
-          <b>Qty:</b> ${o.qty}
-        </div>
-      `;
-    });
+/* LOAD ORDERS */
+function loadOrders(){
+ db.collection("orders").orderBy("time","desc").onSnapshot(s=>{
+  orders.innerHTML="";
+  s.forEach(d=>{
+   let o=d.data();
+   orders.innerHTML+=`
+    <div class="product">
+      <b>${o.product}</b><br>
+      <span class="small">${o.name} | ${o.mobile}</span>
+    </div>`;
   });
+ });
 }
 </script>
 
 </body>
-  </html>
+</html>
