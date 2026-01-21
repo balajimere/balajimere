@@ -14,84 +14,25 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-:root{
-  --red:#F21D44;
-  --green:#03A64A;
-}
-body{
-  margin:0;
-  font-family:Arial;
-  background:#f7f7f7;
-}
-header{
-  background:var(--green);
-  color:#fff;
-  text-align:center;
-  padding:14px;
-  font-size:20px;
-  font-weight:bold;
-}
-.products{
-  padding:12px;
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
-  gap:12px;
-  margin-bottom:80px;
-}
-.card{
-  background:#fff;
-  border-radius:10px;
-  box-shadow:0 2px 6px rgba(0,0,0,.1);
-  overflow:hidden;
-}
-.card img{
-  width:100%;
-  height:170px;
-  object-fit:cover;
-}
-.card .info{
-  padding:10px;
-}
+:root{--red:#F21D44;--green:#03A64A;}
+body{margin:0;font-family:Arial;background:#f7f7f7}
+header{background:var(--green);color:#fff;text-align:center;padding:14px;font-size:20px;font-weight:bold}
+.products{padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:90px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.1);overflow:hidden}
+.slider img{width:100%;height:200px;object-fit:cover}
+.info{padding:10px}
 .price{color:var(--green);font-weight:bold}
-.actions button{
-  width:100%;
-  margin-top:6px;
-  padding:8px;
-  border:none;
-  border-radius:6px;
-  color:#fff;
-  cursor:pointer;
-}
+.mrp{text-decoration:line-through;color:#999;font-size:13px}
+.desc{font-size:13px;color:#555;margin:6px 0}
+.actions button{width:100%;margin-top:6px;padding:8px;border:none;border-radius:6px;color:#fff;cursor:pointer}
 .order{background:var(--green)}
+.cart{background:#ff9800}
+.view{background:#607d8b}
 .share{background:#555}
-.delete{background:var(--red)}
-.comment{
-  width:100%;
-  margin-top:6px;
-  padding:6px;
-}
-.admin{
-  background:#fff;
-  margin:10px;
-  padding:10px;
-  border-radius:10px;
-  display:none;
-}
-.bottom-nav{
-  position:fixed;
-  bottom:0;
-  left:0;
-  width:100%;
-  background:#fff;
-  border-top:1px solid #ddd;
-  display:flex;
-  justify-content:space-around;
-  padding:8px 0;
-}
-.bottom-nav i{
-  font-size:22px;
-  color:var(--green);
-}
+.comment{width:100%;margin-top:6px;padding:6px}
+.bottom-nav{position:fixed;bottom:0;left:0;width:100%;background:#fff;border-top:1px solid #ddd;display:flex;justify-content:space-around;padding:8px 0}
+.bottom-nav i{font-size:22px;color:var(--green)}
+.admin{display:none}
 </style>
 </head>
 
@@ -99,22 +40,10 @@ header{
 
 <header>Shree Balaji Oil Agency</header>
 
-<!-- PRODUCTS -->
 <div class="products" id="productList"></div>
 
-<!-- ADMIN PANEL -->
-<div class="admin" id="adminPanel">
-  <h3>Admin Panel</h3>
-  <input id="email" placeholder="Admin Email"><br><br>
-  <input id="password" type="password" placeholder="Password"><br><br>
-  <button onclick="login()">Login</button>
-  <button onclick="logout()">Logout</button>
-  <hr>
-  <input id="pname" placeholder="Product Name"><br><br>
-  <input id="price" placeholder="Price"><br><br>
-  <input type="file" id="image"><br><br>
-  <button onclick="addProduct()">Add Product</button>
-</div>
+<!-- ADMIN PANEL (HIDDEN) -->
+<div class="admin" id="adminPanel"></div>
 
 <!-- BOTTOM MENU -->
 <div class="bottom-nav">
@@ -124,7 +53,6 @@ header{
 </div>
 
 <script>
-/* 🔥 Firebase Config */
 firebase.initializeApp({
   apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
   authDomain: "balajimere-c8eb9.firebaseapp.com",
@@ -134,78 +62,57 @@ firebase.initializeApp({
   appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed"
 });
 
-const db = firebase.firestore();
-const auth = firebase.auth();
+const db=firebase.firestore();
 const IMGBB_API_KEY="5e77bfe737324a6c147697a13fefcb3d";
-let admin=false;
-
-/* AUTH */
-function login(){
- auth.signInWithEmailAndPassword(email.value,password.value);
-}
-function logout(){auth.signOut();}
-auth.onAuthStateChanged(u=>{
- admin=!!u;
- adminPanel.style.display=admin?"block":"none";
- loadProducts();
-});
 
 /* LOAD PRODUCTS */
-function loadProducts(){
- db.collection("products").onSnapshot(snap=>{
-  productList.innerHTML="";
-  snap.forEach(doc=>{
-    let p=doc.data();
-    productList.innerHTML+=`
-    <div class="card">
-      <img src="${p.imageUrl}">
-      <div class="info">
-        <b>${p.name}</b>
-        <div class="price">₹${p.price}</div>
-        <div class="actions">
-          <button class="order" onclick="order('${p.name}')">Order</button>
-          <button class="share" onclick="share('${p.name}')">Share</button>
-          ${admin?`<button class="delete" onclick="del('${doc.id}')">Delete</button>`:""}
-          <input class="comment" placeholder="Comment..." onkeydown="comment(event,'${doc.id}',this.value)">
-        </div>
+db.collection("products").onSnapshot(snap=>{
+ productList.innerHTML="";
+ snap.forEach(doc=>{
+  let p=doc.data();
+  let imgs=p.images||[p.imageUrl];
+  productList.innerHTML+=`
+  <div class="card">
+    <div class="slider">
+      <img src="${imgs[0]}" onclick="view('${doc.id}')">
+    </div>
+    <div class="info">
+      <b>${p.name}</b><br>
+      <span class="price">₹${p.price}</span>
+      <span class="mrp">₹${p.mrp||""}</span>
+      <div class="desc">${p.description||""}</div>
+
+      <div class="actions">
+        <button class="order" onclick="order('${p.name}')">Order</button>
+        <button class="cart" onclick='addCart(${JSON.stringify(p)}, "${doc.id}")'>Add to Cart</button>
+        <button class="view" onclick="view('${doc.id}')">View Product</button>
+        <button class="share" onclick="share('${p.name}')">Share</button>
+        <input class="comment" placeholder="Comment..." onkeydown="comment(event,'${doc.id}',this.value)">
       </div>
-    </div>`;
-  });
+    </div>
+  </div>`;
  });
-}
+});
 
-/* ADD PRODUCT */
-function addProduct(){
- let f=image.files[0];
- let fd=new FormData();
- fd.append("image",f);
- fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`,{method:"POST",body:fd})
- .then(r=>r.json()).then(d=>{
-   db.collection("products").add({
-     name:pname.value,
-     price:price.value,
-     imageUrl:d.data.url
-   });
- });
+/* CART */
+function addCart(p,id){
+ let c=JSON.parse(localStorage.getItem("cart")||"[]");
+ c.push({...p,id});
+ localStorage.setItem("cart",JSON.stringify(c));
+ alert("Added to cart");
 }
-
-/* DELETE */
-function del(id){ if(confirm("Delete?")) db.collection("products").doc(id).delete(); }
 
 /* COMMENT */
 function comment(e,id,text){
  if(e.key==="Enter"){
-   db.collection("products").doc(id).collection("comments").add({
-     text:text,
-     time:new Date()
-   });
-   e.target.value="";
+  db.collection("products").doc(id).collection("comments").add({text,time:new Date()});
+  e.target.value="";
  }
 }
 
 /* ORDER */
 function order(name){
- window.location="order.html?product="+encodeURIComponent(name);
+ location.href="order.html?product="+encodeURIComponent(name);
 }
 
 /* SHARE */
@@ -215,7 +122,10 @@ function share(name){
  window.open(`https://wa.me/?text=${name}`);
 }
 
-loadProducts();
+/* VIEW */
+function view(id){
+ location.href="view-product.html?id="+id;
+}
 </script>
 
 </body>
