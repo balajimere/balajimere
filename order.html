@@ -1,118 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Place Order | Shree Balaji Oil Agency</title>
+<title>Orders</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-:root{
-  --red:#F21D44;
-  --green:#03A64A;
-}
-body{
-  margin:0;
-  font-family:Arial;
-  background:#f7f7f7;
-}
-header{
-  background:var(--green);
-  color:#fff;
-  text-align:center;
-  padding:14px;
-  font-size:20px;
-  font-weight:bold;
-}
-.box{
-  background:#fff;
-  margin:15px;
-  padding:15px;
-  border-radius:10px;
-}
-input,button{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  font-size:16px;
-}
-button{
-  border:none;
-  border-radius:6px;
-  background:var(--green);
-  color:#fff;
-  cursor:pointer;
-}
-.back{
-  background:#555;
-}
+body{margin:0;font-family:Arial;background:#f4f6f8}
+header{background:#03A64A;color:#fff;padding:14px;text-align:center}
+.card{background:#fff;margin:10px;padding:10px;border-radius:10px}
 </style>
 </head>
 
 <body>
 
-<header>Place Your Order</header>
-
-<div class="box">
-  <b>Product</b>
-  <input id="product" readonly>
-
-  <b>Full Name</b>
-  <input id="name" placeholder="Your Name">
-
-  <b>Mobile Number</b>
-  <input id="mobile" placeholder="10 digit mobile">
-
-  <b>Quantity</b>
-  <input id="qty" type="number" value="1" min="1">
-
-  <button onclick="placeOrder()">Place Order</button>
-  <button class="back" onclick="history.back()">Back</button>
-</div>
+<header>My Orders</header>
+<div id="orders"></div>
 
 <script>
-/* 🔥 Firebase Config */
 firebase.initializeApp({
-  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
-  authDomain: "balajimere-c8eb9.firebaseapp.com",
-  projectId: "balajimere-c8eb9",
-  messagingSenderId: "354355662744",
-  appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed"
+ apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain:"balajimere-c8eb9.firebaseapp.com",
+ projectId:"balajimere-c8eb9"
 });
+const db=firebase.firestore();
 
-const db = firebase.firestore();
+let user=JSON.parse(localStorage.getItem("user"));
 
-/* GET PRODUCT FROM URL */
-const params = new URLSearchParams(window.location.search);
-document.getElementById("product").value =
-  params.get("product") || "Unknown Product";
-
-/* PLACE ORDER */
-function placeOrder(){
-  const product = product.value;
-  const name = document.getElementById("name").value;
-  const mobile = document.getElementById("mobile").value;
-  const qty = document.getElementById("qty").value;
-
-  if(!name || !mobile){
-    alert("Name and Mobile required");
-    return;
-  }
-
-  db.collection("orders").add({
-    product: product,
-    name: name,
-    mobile: mobile,
-    qty: qty,
-    time: new Date()
-  }).then(()=>{
-    alert("Order placed successfully ✅");
-    window.location="home.html";
-  });
-}
+db.collection("orders")
+.where("mobile","==",user.mobile)
+.orderBy("time","desc")
+.onSnapshot(s=>{
+ orders.innerHTML="";
+ s.forEach(d=>{
+  let o=d.data();
+  orders.innerHTML+=`
+  <div class="card">
+   <b>${o.product}</b><br>
+   ₹${o.price}<br>
+   ${new Date(o.time.seconds*1000).toLocaleString()}
+  </div>`;
+ });
+});
 </script>
 
 </body>
