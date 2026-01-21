@@ -2,149 +2,219 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Products | Balaji</title>
+<title>Shree Balaji Oil Agency</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-body { font-family: Arial; background:#f4f6f8; margin:0; }
-header { background:#0d6efd; color:#fff; padding:15px; text-align:center; }
-.container { padding:15px; }
-.products { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:15px; }
-.card {
+:root{
+  --red:#F21D44;
+  --green:#03A64A;
+}
+body{
+  margin:0;
+  font-family:Arial;
+  background:#f7f7f7;
+}
+header{
+  background:var(--green);
+  color:#fff;
+  text-align:center;
+  padding:14px;
+  font-size:20px;
+  font-weight:bold;
+}
+.products{
+  padding:12px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+  gap:12px;
+  margin-bottom:80px;
+}
+.card{
   background:#fff;
   border-radius:10px;
-  padding:10px;
-  box-shadow:0 2px 5px rgba(0,0,0,0.1);
-  text-align:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  overflow:hidden;
 }
-.card img { width:100%; height:140px; object-fit:cover; border-radius:8px; }
-.price { color:green; font-weight:bold; }
-.admin { background:#fff; padding:15px; margin:15px; border-radius:10px; display:none; }
-button { padding:8px 12px; border:none; border-radius:5px; cursor:pointer; }
-.delete { background:red; color:white; margin-top:5px; }
+.card img{
+  width:100%;
+  height:170px;
+  object-fit:cover;
+}
+.card .info{
+  padding:10px;
+}
+.price{color:var(--green);font-weight:bold}
+.actions button{
+  width:100%;
+  margin-top:6px;
+  padding:8px;
+  border:none;
+  border-radius:6px;
+  color:#fff;
+  cursor:pointer;
+}
+.order{background:var(--green)}
+.share{background:#555}
+.delete{background:var(--red)}
+.comment{
+  width:100%;
+  margin-top:6px;
+  padding:6px;
+}
+.admin{
+  background:#fff;
+  margin:10px;
+  padding:10px;
+  border-radius:10px;
+  display:none;
+}
+.bottom-nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+  background:#fff;
+  border-top:1px solid #ddd;
+  display:flex;
+  justify-content:space-around;
+  padding:8px 0;
+}
+.bottom-nav i{
+  font-size:22px;
+  color:var(--green);
+}
 </style>
 </head>
 
 <body>
 
-<header>
-  <h2>Balaji Products</h2>
-</header>
+<header>Shree Balaji Oil Agency</header>
 
-<div class="container">
-  <div class="products" id="productList"></div>
-</div>
+<!-- PRODUCTS -->
+<div class="products" id="productList"></div>
 
 <!-- ADMIN PANEL -->
 <div class="admin" id="adminPanel">
   <h3>Admin Panel</h3>
-
-  <input type="email" id="email" placeholder="Admin Email"><br><br>
-  <input type="password" id="password" placeholder="Password"><br><br>
-  <button onclick="login()">Admin Login</button>
+  <input id="email" placeholder="Admin Email"><br><br>
+  <input id="password" type="password" placeholder="Password"><br><br>
+  <button onclick="login()">Login</button>
   <button onclick="logout()">Logout</button>
-
   <hr>
-
-  <input type="text" id="pname" placeholder="Product Name"><br><br>
-  <input type="text" id="price" placeholder="Price"><br><br>
+  <input id="pname" placeholder="Product Name"><br><br>
+  <input id="price" placeholder="Price"><br><br>
   <input type="file" id="image"><br><br>
   <button onclick="addProduct()">Add Product</button>
 </div>
 
+<!-- BOTTOM MENU -->
+<div class="bottom-nav">
+  <i class="fa-solid fa-box" onclick="location.href='order.html'"></i>
+  <i class="fa-solid fa-user" onclick="location.href='login.html'"></i>
+  <i class="fa-solid fa-cart-shopping" onclick="location.href='cart.html'"></i>
+</div>
+
 <script>
 /* 🔥 Firebase Config */
-const firebaseConfig = {
+firebase.initializeApp({
   apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
   authDomain: "balajimere-c8eb9.firebaseapp.com",
   projectId: "balajimere-c8eb9",
   storageBucket: "balajimere-c8eb9.appspot.com",
   messagingSenderId: "354355662744",
-  appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed",
-  measurementId: "G-8WVB9MLWS8"
-};
-
-firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-
-/* 🔹 LOAD PRODUCTS */
-function loadProducts(){
-  db.collection("products").onSnapshot(snapshot=>{
-    productList.innerHTML = "";
-    snapshot.forEach(doc=>{
-      const p = doc.data();
-      productList.innerHTML += `
-        <div class="card">
-          <img src="${p.imageUrl}">
-          <h4>${p.name}</h4>
-          <div class="price">₹${p.price}</div>
-          ${adminLogged ? `<button class="delete" onclick="deleteProduct('${doc.id}')">Delete</button>` : ""}
-        </div>
-      `;
-    });
-  });
-}
-
-/* 🔹 ADMIN LOGIN */
-let adminLogged = false;
-
-function login(){
-  auth.signInWithEmailAndPassword(email.value, password.value)
-  .then(()=>{
-    alert("Admin Logged In");
-  }).catch(e=>alert(e.message));
-}
-
-function logout(){
-  auth.signOut();
-}
-
-/* 🔹 AUTH CHECK */
-auth.onAuthStateChanged(user=>{
-  if(user){
-    adminLogged = true;
-    adminPanel.style.display = "block";
-  }else{
-    adminLogged = false;
-    adminPanel.style.display = "none";
-  }
-  loadProducts();
+  appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed"
 });
 
-/* 🔹 ADD PRODUCT */
-function addProduct(){
-  const file = image.files[0];
-  const ref = storage.ref("products/" + Date.now());
+const db = firebase.firestore();
+const auth = firebase.auth();
+const IMGBB_API_KEY="5e77bfe737324a6c147697a13fefcb3d";
+let admin=false;
 
-  ref.put(file).then(()=>{
-    ref.getDownloadURL().then(url=>{
-      db.collection("products").add({
-        name: pname.value,
-        price: price.value,
-        imageUrl: url
-      });
-      alert("Product Added");
-    });
+/* AUTH */
+function login(){
+ auth.signInWithEmailAndPassword(email.value,password.value);
+}
+function logout(){auth.signOut();}
+auth.onAuthStateChanged(u=>{
+ admin=!!u;
+ adminPanel.style.display=admin?"block":"none";
+ loadProducts();
+});
+
+/* LOAD PRODUCTS */
+function loadProducts(){
+ db.collection("products").onSnapshot(snap=>{
+  productList.innerHTML="";
+  snap.forEach(doc=>{
+    let p=doc.data();
+    productList.innerHTML+=`
+    <div class="card">
+      <img src="${p.imageUrl}">
+      <div class="info">
+        <b>${p.name}</b>
+        <div class="price">₹${p.price}</div>
+        <div class="actions">
+          <button class="order" onclick="order('${p.name}')">Order</button>
+          <button class="share" onclick="share('${p.name}')">Share</button>
+          ${admin?`<button class="delete" onclick="del('${doc.id}')">Delete</button>`:""}
+          <input class="comment" placeholder="Comment..." onkeydown="comment(event,'${doc.id}',this.value)">
+        </div>
+      </div>
+    </div>`;
   });
+ });
 }
 
-/* 🔹 DELETE PRODUCT */
-function deleteProduct(id){
-  if(confirm("Delete product?")){
-    db.collection("products").doc(id).delete();
-  }
+/* ADD PRODUCT */
+function addProduct(){
+ let f=image.files[0];
+ let fd=new FormData();
+ fd.append("image",f);
+ fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`,{method:"POST",body:fd})
+ .then(r=>r.json()).then(d=>{
+   db.collection("products").add({
+     name:pname.value,
+     price:price.value,
+     imageUrl:d.data.url
+   });
+ });
 }
 
-/* INITIAL LOAD */
+/* DELETE */
+function del(id){ if(confirm("Delete?")) db.collection("products").doc(id).delete(); }
+
+/* COMMENT */
+function comment(e,id,text){
+ if(e.key==="Enter"){
+   db.collection("products").doc(id).collection("comments").add({
+     text:text,
+     time:new Date()
+   });
+   e.target.value="";
+ }
+}
+
+/* ORDER */
+function order(name){
+ window.location="order.html?product="+encodeURIComponent(name);
+}
+
+/* SHARE */
+function share(name){
+ navigator.share?
+ navigator.share({title:name,text:name,url:location.href}):
+ window.open(`https://wa.me/?text=${name}`);
+}
+
 loadProducts();
 </script>
 
