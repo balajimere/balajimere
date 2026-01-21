@@ -5,7 +5,6 @@
 <title>Admin Panel - Shree Balaji Oil Agency</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -44,13 +43,12 @@ button.red{background:var(--red)}
   <div class="card">
     <h3>Add Product</h3>
 
-    <!-- 🔥 hidden product id for edit -->
     <input type="hidden" id="pid">
 
-    <input id="name" placeholder="Product Name">
-    <input id="price" placeholder="Price">
-    <input id="mrp" placeholder="MRP">
-    <textarea id="desc" placeholder="Product Description"></textarea>
+    <input id="pname" placeholder="Product Name">
+    <input id="pprice" placeholder="Price">
+    <input id="pmrp" placeholder="MRP">
+    <textarea id="pdesc" placeholder="Product Description"></textarea>
     <input type="file" id="images" multiple>
 
     <button onclick="addProduct()">Save Product</button>
@@ -76,7 +74,6 @@ firebase.initializeApp({
   apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
   authDomain: "balajimere-c8eb9.firebaseapp.com",
   projectId: "balajimere-c8eb9",
-  storageBucket: "balajimere-c8eb9.appspot.com",
   messagingSenderId: "354355662744",
   appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed"
 });
@@ -87,7 +84,10 @@ const IMGBB = "5e77bfe737324a6c147697a13fefcb3d";
 
 /* LOGIN */
 function login(){
- auth.signInWithEmailAndPassword(email.value,password.value);
+ auth.signInWithEmailAndPassword(
+  document.getElementById("email").value,
+  document.getElementById("password").value
+ );
 }
 function logout(){auth.signOut();}
 
@@ -102,41 +102,44 @@ auth.onAuthStateChanged(u=>{
  }
 });
 
-/* ✅ ADD / UPDATE PRODUCT (FIXED) */
+/* ADD / UPDATE PRODUCT */
 async function addProduct(){
 
- if(!name.value || !price.value){
+ const name  = document.getElementById("pname").value.trim();
+ const price = document.getElementById("pprice").value.trim();
+ const mrp   = document.getElementById("pmrp").value.trim();
+ const desc  = document.getElementById("pdesc").value.trim();
+ const pid   = document.getElementById("pid").value;
+
+ if(!name || !price){
    alert("Product name & price required");
    return;
  }
 
  let urls=[];
 
- if(images.files.length>0){
+ if(images.files.length){
    for(let f of images.files){
      let fd=new FormData();
      fd.append("image",f);
-     let r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB}`,{
-       method:"POST",
-       body:fd
-     });
+     let r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB}`,{method:"POST",body:fd});
      let j=await r.json();
      if(j.success) urls.push(j.data.url);
    }
  }
 
  let data={
-   name:name.value,
-   price:price.value,
-   mrp:mrp.value,
-   description:desc.value,
+   name:name,
+   price:price,
+   mrp:mrp,
+   description:desc,
    images:urls,
-   imageUrl:urls[0] || "",
+   imageUrl:urls[0]||"",
    time:new Date()
  };
 
- if(pid.value){
-   await db.collection("products").doc(pid.value).update(data);
+ if(pid){
+   await db.collection("products").doc(pid).update(data);
    alert("Product Updated");
  }else{
    await db.collection("products").add(data);
@@ -146,17 +149,17 @@ async function addProduct(){
  clearForm();
 }
 
-/* LOAD PRODUCTS */
+/* LOAD PRODUCTS (NO orderBy – old products visible) */
 function loadProducts(){
- db.collection("products").orderBy("time","desc").onSnapshot(s=>{
+ db.collection("products").onSnapshot(s=>{
   productList.innerHTML="";
   s.forEach(d=>{
    let p=d.data();
    productList.innerHTML+=`
     <div class="product">
       <b>${p.name}</b><br>
-      <span class="small">₹${p.price} / MRP ₹${p.mrp}</span><br>
-      <button onclick="editProduct('${d.id}','${p.name}','${p.price}','${p.mrp}','${p.description||""}')">Edit</button>
+      <span class="small">₹${p.price} / MRP ₹${p.mrp||""}</span><br>
+      <button onclick="editProduct('${d.id}',${JSON.stringify(p)})">Edit</button>
       <button class="red" onclick="del('${d.id}')">Delete</button>
     </div>`;
   });
@@ -164,12 +167,12 @@ function loadProducts(){
 }
 
 /* EDIT */
-function editProduct(id,n,pr,mr,ds){
- pid.value=id;
- name.value=n;
- price.value=pr;
- mrp.value=mr;
- desc.value=ds;
+function editProduct(id,p){
+ document.getElementById("pid").value=id;
+ document.getElementById("pname").value=p.name||"";
+ document.getElementById("pprice").value=p.price||"";
+ document.getElementById("pmrp").value=p.mrp||"";
+ document.getElementById("pdesc").value=p.description||"";
  window.scrollTo(0,0);
 }
 
@@ -179,19 +182,18 @@ function del(id){
   db.collection("products").doc(id).delete();
 }
 
-/* CLEAR FORM */
 function clearForm(){
  pid.value="";
- name.value="";
- price.value="";
- mrp.value="";
- desc.value="";
+ pname.value="";
+ pprice.value="";
+ pmrp.value="";
+ pdesc.value="";
  images.value="";
 }
 
 /* LOAD ORDERS */
 function loadOrders(){
- db.collection("orders").orderBy("time","desc").onSnapshot(s=>{
+ db.collection("orders").onSnapshot(s=>{
   orders.innerHTML="";
   s.forEach(d=>{
    let o=d.data();
