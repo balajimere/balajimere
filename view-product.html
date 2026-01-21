@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>View Product</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+:root{--green:#03A64A}
+body{margin:0;font-family:Arial;background:#f6f6f6}
+header{background:var(--green);color:#fff;padding:14px;text-align:center;font-size:18px;font-weight:bold}
+
+.slider{position:relative;overflow:hidden;background:#000}
+.slides{display:flex;transition:.4s}
+.slides img{width:100%;max-height:360px;object-fit:contain;background:#000}
+
+.nav{position:absolute;top:50%;transform:translateY(-50%);font-size:30px;color:#fff;padding:10px;cursor:pointer}
+.prev{left:0} .next{right:0}
+
+.card{background:#fff;padding:14px;margin:10px;border-radius:12px}
+.price{color:var(--green);font-size:18px;font-weight:bold}
+.mrp{text-decoration:line-through;color:#999;margin-left:8px}
+.desc{font-size:14px;color:#444;margin-top:8px;line-height:1.5}
+
+.actions button{
+ width:100%;margin-top:8px;padding:12px;border:none;
+ border-radius:8px;color:#fff;font-size:15px;cursor:pointer
+}
+.order{background:var(--green)}
+.cart{background:#ff9800}
+
+.comments{margin-top:14px}
+.comment{padding:8px 0;border-bottom:1px solid #eee;font-size:14px}
+.comment b{color:#333}
+
+.comment-box{display:flex;gap:6px;margin-top:10px}
+.comment-box input{
+ flex:1;padding:10px;border-radius:20px;border:1px solid #ccc
+}
+.comment-box button{
+ padding:10px 16px;border:none;border-radius:20px;
+ background:var(--green);color:#fff
+}
+</style>
+</head>
+
+<body>
+
+<header>Product Details</header>
+
+<div class="slider">
+  <div class="slides" id="slides"></div>
+  <div class="nav prev" onclick="move(-1)">❮</div>
+  <div class="nav next" onclick="move(1)">❯</div>
+</div>
+
+<div class="card">
+  <h3 id="pname"></h3>
+  <span class="price" id="price"></span>
+  <span class="mrp" id="mrp"></span>
+  <div class="desc" id="desc"></div>
+
+  <div class="actions">
+    <button class="order" onclick="order()">Order Now</button>
+    <button class="cart" onclick="addCart()">Add to Cart</button>
+  </div>
+</div>
+
+<div class="card comments">
+  <h4>Comments</h4>
+  <div id="commentList"></div>
+
+  <div class="comment-box">
+    <input id="commentText" placeholder="Add a comment...">
+    <button onclick="sendComment()">Post</button>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+  authDomain: "balajimere-c8eb9.firebaseapp.com",
+  projectId: "balajimere-c8eb9"
+});
+
+const db = firebase.firestore();
+const id = new URLSearchParams(location.search).get("id");
+
+let product={}, index=0;
+
+/* LOAD PRODUCT */
+db.collection("products").doc(id).get().then(d=>{
+ product=d.data();
+ pname.innerText=product.name;
+ price.innerText="₹"+product.price;
+ mrp.innerText=product.mrp?"₹"+product.mrp:"";
+ desc.innerText=product.description||"";
+
+ let imgs=product.images||[product.image];
+ slides.innerHTML="";
+ imgs.forEach(i=>{
+  slides.innerHTML+=`<img src="${i}">`;
+ });
+});
+
+/* SLIDER */
+function move(n){
+ let total=slides.children.length;
+ index=(index+n+total)%total;
+ slides.style.transform=`translateX(-${index*100}%)`;
+}
+
+/* ORDER */
+function order(){
+ location.href="order.html?product="+encodeURIComponent(product.name);
+}
+
+/* CART */
+function addCart(){
+ let c=JSON.parse(localStorage.getItem("cart")||"[]");
+ c.push({...product,id});
+ localStorage.setItem("cart",JSON.stringify(c));
+ alert("Added to cart");
+}
+
+/* COMMENTS (Realtime – Instagram style) */
+db.collection("products").doc(id)
+.collection("comments").orderBy("time","asc")
+.onSnapshot(s=>{
+ commentList.innerHTML="";
+ s.forEach(d=>{
+  let c=d.data();
+  commentList.innerHTML+=`
+   <div class="comment">
+    <b>User:</b> ${c.text}
+   </div>`;
+ });
+});
+
+function sendComment(){
+ let t=commentText.value.trim();
+ if(!t) return;
+ db.collection("products").doc(id)
+ .collection("comments").add({
+  text:t,
+  time:new Date()
+ });
+ commentText.value="";
+}
+</script>
+
+</body>
+  </html>
