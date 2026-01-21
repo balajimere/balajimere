@@ -17,11 +17,12 @@ body{margin:0;font-family:Arial;background:#f4f6f8}
 header{background:var(--green);color:#fff;padding:14px;text-align:center;font-size:20px;font-weight:bold}
 .container{padding:14px}
 .card{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-input,textarea,button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
+input,textarea,button,select{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
 button{border:none;background:var(--green);color:#fff;font-size:15px;cursor:pointer}
 button.red{background:var(--red)}
 .product{border-bottom:1px solid #eee;padding:8px 0}
 .small{font-size:13px;color:#666}
+.scroll{max-height:260px;overflow-y:auto}
 </style>
 </head>
 
@@ -40,11 +41,20 @@ button.red{background:var(--red)}
 
 <div id="dashboard" style="display:none">
 
+  <!-- CATEGORY -->
+  <div class="card">
+    <h3>Add Category</h3>
+    <input id="catName" placeholder="Category Name">
+    <button onclick="addCategory()">Add Category</button>
+  </div>
+
+  <!-- ADD PRODUCT -->
   <div class="card">
     <h3>Add Product</h3>
 
     <input type="hidden" id="pid">
 
+    <select id="pcategory"></select>
     <input id="pname" placeholder="Product Name">
     <input id="pprice" placeholder="Price">
     <input id="pmrp" placeholder="MRP">
@@ -54,14 +64,22 @@ button.red{background:var(--red)}
     <button onclick="addProduct()">Save Product</button>
   </div>
 
+  <!-- PRODUCTS -->
   <div class="card">
     <h3>Products</h3>
-    <div id="productList"></div>
+    <div id="productList" class="scroll"></div>
   </div>
 
+  <!-- USERS -->
+  <div class="card">
+    <h3>Users</h3>
+    <div id="users" class="scroll"></div>
+  </div>
+
+  <!-- ORDERS -->
   <div class="card">
     <h3>Orders</h3>
-    <div id="orders"></div>
+    <div id="orders" class="scroll"></div>
   </div>
 
   <button class="red" onclick="logout()">Logout</button>
@@ -73,83 +91,63 @@ button.red{background:var(--red)}
 firebase.initializeApp({
   apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
   authDomain: "balajimere-c8eb9.firebaseapp.com",
-  projectId: "balajimere-c8eb9",
-  messagingSenderId: "354355662744",
-  appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed"
+  projectId: "balajimere-c8eb9"
 });
 
 const auth = firebase.auth();
-const db   = firebase.firestore();
-const IMGBB = "5e77bfe737324a6c147697a13fefcb3d";
+const db = firebase.firestore();
 
 /* LOGIN */
 function login(){
- auth.signInWithEmailAndPassword(
-  document.getElementById("email").value,
-  document.getElementById("password").value
- );
+ auth.signInWithEmailAndPassword(email.value,password.value);
 }
 function logout(){auth.signOut();}
 
 auth.onAuthStateChanged(u=>{
  if(u && u.email==="balajimere.admin@gmail.com"){
-   loginBox.style.display="none";
-   dashboard.style.display="block";
-   loadProducts(); loadOrders();
+  loginBox.style.display="none";
+  dashboard.style.display="block";
+  loadProducts(); loadOrders(); loadUsers(); loadCategories();
  }else{
-   dashboard.style.display="none";
-   loginBox.style.display="block";
+  dashboard.style.display="none";
+  loginBox.style.display="block";
  }
 });
 
-/* ADD / UPDATE PRODUCT */
-async function addProduct(){
-
- const name  = document.getElementById("pname").value.trim();
- const price = document.getElementById("pprice").value.trim();
- const mrp   = document.getElementById("pmrp").value.trim();
- const desc  = document.getElementById("pdesc").value.trim();
- const pid   = document.getElementById("pid").value;
-
- if(!name || !price){
-   alert("Product name & price required");
-   return;
- }
-
- let urls=[];
-
- if(images.files.length){
-   for(let f of images.files){
-     let fd=new FormData();
-     fd.append("image",f);
-     let r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB}`,{method:"POST",body:fd});
-     let j=await r.json();
-     if(j.success) urls.push(j.data.url);
-   }
- }
-
- let data={
-   name:name,
-   price:price,
-   mrp:mrp,
-   description:desc,
-   images:urls,
-   imageUrl:urls[0]||"",
-   time:new Date()
- };
-
- if(pid){
-   await db.collection("products").doc(pid).update(data);
-   alert("Product Updated");
- }else{
-   await db.collection("products").add(data);
-   alert("Product Saved");
- }
-
- clearForm();
+/* CATEGORY */
+async function addCategory(){
+ let c = catName.value.trim();
+ if(!c) return;
+ await db.collection("categories").doc(c).set({name:c});
+ catName.value="";
+}
+function loadCategories(){
+ db.collection("categories").onSnapshot(s=>{
+  pcategory.innerHTML="";
+  s.forEach(d=>{
+   pcategory.innerHTML+=`<option value="${d.id}">${d.id}</option>`;
+  });
+ });
 }
 
-/* LOAD PRODUCTS (NO orderBy – old products visible) */
+/* PRODUCT */
+async function addProduct(){
+ let data={
+  category:pcategory.value,
+  name:pname.value,
+  price:pprice.value,
+  mrp:pmrp.value,
+  description:pdesc.value,
+  time:new Date()
+ };
+ if(pid.value){
+  await db.collection("products").doc(pid.value).update(data);
+ }else{
+  await db.collection("products").add(data);
+ }
+}
+
+/* LOAD PRODUCTS */
 function loadProducts(){
  db.collection("products").onSnapshot(s=>{
   productList.innerHTML="";
@@ -157,41 +155,29 @@ function loadProducts(){
    let p=d.data();
    productList.innerHTML+=`
     <div class="product">
-      <b>${p.name}</b><br>
-      <span class="small">₹${p.price} / MRP ₹${p.mrp||""}</span><br>
-      <button onclick="editProduct('${d.id}',${JSON.stringify(p)})">Edit</button>
-      <button class="red" onclick="del('${d.id}')">Delete</button>
+     <b>${p.name}</b><br>
+     <span class="small">${p.category} | ₹${p.price}</span>
     </div>`;
   });
  });
 }
 
-/* EDIT */
-function editProduct(id,p){
- document.getElementById("pid").value=id;
- document.getElementById("pname").value=p.name||"";
- document.getElementById("pprice").value=p.price||"";
- document.getElementById("pmrp").value=p.mrp||"";
- document.getElementById("pdesc").value=p.description||"";
- window.scrollTo(0,0);
+/* USERS */
+function loadUsers(){
+ db.collection("users").onSnapshot(s=>{
+  users.innerHTML="";
+  s.forEach(d=>{
+   let u=d.data();
+   users.innerHTML+=`
+    <div class="product">
+     <b>${u.name}</b><br>
+     <span class="small">${u.mobile} | ${u.shop}</span>
+    </div>`;
+  });
+ });
 }
 
-/* DELETE */
-function del(id){
- if(confirm("Delete product?"))
-  db.collection("products").doc(id).delete();
-}
-
-function clearForm(){
- pid.value="";
- pname.value="";
- pprice.value="";
- pmrp.value="";
- pdesc.value="";
- images.value="";
-}
-
-/* LOAD ORDERS */
+/* ORDERS */
 function loadOrders(){
  db.collection("orders").onSnapshot(s=>{
   orders.innerHTML="";
@@ -199,11 +185,19 @@ function loadOrders(){
    let o=d.data();
    orders.innerHTML+=`
     <div class="product">
-      <b>${o.product}</b><br>
-      <span class="small">${o.name} | ${o.mobile}</span>
+     <b>${o.product}</b><br>
+     <span class="small">${o.name} | ${o.mobile}</span><br>
+     <select onchange="updateOrder('${d.id}',this.value)">
+      <option ${o.status==="Pending"?"selected":""}>Pending</option>
+      <option ${o.status==="Confirmed"?"selected":""}>Confirmed</option>
+      <option ${o.status==="Delivered"?"selected":""}>Delivered</option>
+     </select>
     </div>`;
   });
  });
+}
+function updateOrder(id,status){
+ db.collection("orders").doc(id).update({status:status});
 }
 </script>
 
