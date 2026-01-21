@@ -10,20 +10,16 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<!-- Icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
 <style>
 :root{--green:#03A64A;--red:#F21D44}
-body{margin:0;font-family:Arial;background:#f4f6f8}
+body{margin:0;font-family:Arial;background:#f5f5f5}
 header{background:var(--green);color:#fff;padding:14px;text-align:center;font-size:20px;font-weight:bold}
-.container{padding:14px}
-.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-input,textarea,button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
-button{border:none;background:var(--green);color:#fff;font-size:15px;cursor:pointer}
-button.red{background:var(--red)}
-.product{border-bottom:1px solid #eee;padding:8px 0}
-.small{font-size:13px;color:#666}
+.card{background:#fff;margin:12px;padding:14px;border-radius:10px}
+input,textarea,button{width:100%;padding:10px;margin-top:8px}
+button{background:var(--green);border:none;color:#fff;border-radius:6px;cursor:pointer}
+.red{background:var(--red)}
+.product{border-bottom:1px solid #eee;padding:10px 0}
+.small{font-size:13px;color:#555}
 </style>
 </head>
 
@@ -31,42 +27,32 @@ button.red{background:var(--red)}
 
 <header>Admin Panel – Shree Balaji Oil Agency</header>
 
-<div class="container">
-
-<!-- LOGIN -->
 <div class="card" id="loginBox">
   <h3>Admin Login</h3>
   <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
+  <input id="password" type="password">
   <button onclick="login()">Login</button>
 </div>
 
-<!-- ADMIN DASHBOARD -->
 <div id="dashboard" style="display:none">
 
-  <div class="card">
-    <h3>Add Product</h3>
-    <input id="name" placeholder="Product Name">
-    <input id="price" placeholder="Price">
-    <input id="mrp" placeholder="MRP">
-    <textarea id="desc" placeholder="Product Description"></textarea>
-    <input type="file" id="images" multiple>
-    <button onclick="addProduct()">Add Product</button>
-  </div>
-
-  <div class="card">
-    <h3>Products</h3>
-    <div id="productList"></div>
-  </div>
-
-  <div class="card">
-    <h3>Orders</h3>
-    <div id="orders"></div>
-  </div>
-
-  <button class="red" onclick="logout()">Logout</button>
-
+<div class="card">
+  <h3>Add / Edit Product</h3>
+  <input id="pid" hidden>
+  <input id="name" placeholder="Product Name">
+  <input id="price" placeholder="Price">
+  <input id="mrp" placeholder="MRP">
+  <textarea id="desc" placeholder="Description"></textarea>
+  <input type="file" id="images" multiple>
+  <button onclick="saveProduct()">Save Product</button>
 </div>
+
+<div class="card">
+  <h3>Products</h3>
+  <div id="productList"></div>
+</div>
+
+<button class="red" onclick="logout()">Logout</button>
 </div>
 
 <script>
@@ -93,69 +79,88 @@ auth.onAuthStateChanged(u=>{
  if(u && u.email==="balajimere.admin@gmail.com"){
    loginBox.style.display="none";
    dashboard.style.display="block";
-   loadProducts(); loadOrders();
+   loadProducts();
  }else{
    dashboard.style.display="none";
    loginBox.style.display="block";
  }
 });
 
-/* ADD PRODUCT */
-async function addProduct(){
- let files=[...images.files];
+/* SAVE PRODUCT */
+async function saveProduct(){
+ if(!name.value || !price.value){ alert("Fill all fields"); return; }
+
  let urls=[];
- for(let f of files){
-  let fd=new FormData();
-  fd.append("image",f);
-  let r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB}`,{method:"POST",body:fd});
-  let j=await r.json();
-  urls.push(j.data.url);
+ if(images.files.length>0){
+  for(let f of images.files){
+   let fd=new FormData();
+   fd.append("image",f);
+   let r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB}`,{method:"POST",body:fd});
+   let j=await r.json();
+   urls.push(j.data.url);
+  }
  }
- db.collection("products").add({
+
+ let data={
   name:name.value,
   price:price.value,
   mrp:mrp.value,
   description:desc.value,
   images:urls,
-  imageUrl:urls[0],
+  imageUrl:urls[0]||"",
   time:new Date()
- });
- alert("Product added");
+ };
+
+ if(pid.value){
+   await db.collection("products").doc(pid.value).update(data);
+   alert("Product Updated");
+ }else{
+   await db.collection("products").add(data);
+   alert("Product Added");
+ }
+ clearForm();
 }
 
 /* LOAD PRODUCTS */
 function loadProducts(){
- db.collection("products").onSnapshot(s=>{
+ db.collection("products").orderBy("time","desc").onSnapshot(s=>{
   productList.innerHTML="";
   s.forEach(d=>{
    let p=d.data();
    productList.innerHTML+=`
-    <div class="product">
-      <b>${p.name}</b><br>
-      <span class="small">₹${p.price} / MRP ₹${p.mrp}</span>
-      <button class="red" onclick="del('${d.id}')">Delete</button>
-    </div>`;
+   <div class="product">
+     <b>${p.name}</b><br>
+     <span class="small">₹${p.price} | MRP ₹${p.mrp}</span><br>
+     <button onclick="edit('${d.id}','${p.name}','${p.price}','${p.mrp}','${p.description||""}')">Edit</button>
+     <button class="red" onclick="del('${d.id}')">Delete</button>
+   </div>`;
   });
  });
 }
+
+/* EDIT */
+function edit(id,n,pr,mr,d){
+ pid.value=id;
+ name.value=n;
+ price.value=pr;
+ mrp.value=mr;
+ desc.value=d;
+ window.scrollTo(0,0);
+}
+
+/* DELETE */
 function del(id){
  if(confirm("Delete product?"))
   db.collection("products").doc(id).delete();
 }
 
-/* LOAD ORDERS */
-function loadOrders(){
- db.collection("orders").orderBy("time","desc").onSnapshot(s=>{
-  orders.innerHTML="";
-  s.forEach(d=>{
-   let o=d.data();
-   orders.innerHTML+=`
-    <div class="product">
-      <b>${o.product}</b><br>
-      <span class="small">${o.name} | ${o.mobile}</span>
-    </div>`;
-  });
- });
+function clearForm(){
+ pid.value="";
+ name.value="";
+ price.value="";
+ mrp.value="";
+ desc.value="";
+ images.value="";
 }
 </script>
 
