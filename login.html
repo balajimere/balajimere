@@ -25,8 +25,7 @@ body{
  max-width:380px;
  padding:20px;
  border-radius:14px;
- box-shadow:0 4px 10px rgba(0,0,0,.15);
- position:relative
+ box-shadow:0 4px 10px rgba(0,0,0,.15)
 }
 h2{text-align:center;color:var(--green)}
 input,button{
@@ -46,31 +45,12 @@ button{
 button.red{background:var(--red)}
 .small{text-align:center;font-size:13px;color:#777;margin-top:10px}
 .hide{display:none}
-
-/* HEADER BUTTONS */
-.header{
- position:absolute;
- top:10px;
- right:10px;
- display:flex;
- gap:6px
-}
-.header button{
- padding:6px 10px;
- font-size:12px
-}
 </style>
 </head>
 
 <body>
 
 <div class="card">
-
-<div class="header hide" id="headerBtns">
- <button onclick="goHome()">Home</button>
- <button class="red" onclick="logout()">Logout</button>
-</div>
-
 <h2>Shree Balaji Oil Agency</h2>
 
 <!-- LOGIN -->
@@ -86,8 +66,8 @@ button.red{background:var(--red)}
  <input id="shop" placeholder="Shop Name">
  <input id="address" placeholder="Address">
 
- <button onclick="saveUser()">Save / Update</button>
- <button class="red" onclick="back()">Back</button>
+ <button onclick="saveUser()">Save</button>
+ <button class="red" onclick="logout()">Logout</button>
 </div>
 
 <p class="small">No OTP • No Password • Fast Login</p>
@@ -99,13 +79,8 @@ firebase.initializeApp({
  authDomain: "balajimere-c8eb9.firebaseapp.com",
  projectId: "balajimere-c8eb9"
 });
-const db = firebase.firestore();
 
-/* AUTO LOGIN */
-let savedUser = localStorage.getItem("user");
-if(savedUser){
- showProfile(JSON.parse(savedUser));
-}
+const db = firebase.firestore();
 
 /* CHECK LOGIN */
 async function checkLogin(){
@@ -113,6 +88,7 @@ async function checkLogin(){
  if(m.length!==10){ alert("Enter valid mobile"); return; }
 
  let doc = await db.collection("users").doc(m).get();
+
  if(doc.exists){
    localStorage.setItem("user",JSON.stringify(doc.data()));
    showProfile(doc.data());
@@ -123,39 +99,46 @@ async function checkLogin(){
  }
 }
 
-/* SHOW PROFILE */
-function showProfile(data){
- loginBox.classList.add("hide");
- registerBox.classList.remove("hide");
- headerBtns.classList.remove("hide");
-
- name.value = data.name || "";
- mobile.value = data.mobile || "";
- shop.value = data.shop || "";
- address.value = data.address || "";
-}
-
-/* SAVE USER (NO REDIRECT) */
+/* ✅ FIXED SAVE USER */
 async function saveUser(){
  try{
-   let n=name.value.trim();
-   let m=mobile.value.trim();
-   let s=shop.value.trim();
-   let a=address.value.trim();
+   let n = document.getElementById("name").value.trim();
+   let m = document.getElementById("mobile").value.trim();
+   let s = document.getElementById("shop").value.trim();
+   let a = document.getElementById("address").value.trim();
 
-   if(!n||!m||!s||!a){
+   if(!n || !m || !s || !a){
      alert("Fill all details");
      return;
    }
 
-   let data={name:n,mobile:m,shop:s,address:a,time:new Date()};
+   let data={
+     name:n,
+     mobile:m,
+     shop:s,
+     address:a,
+     time:new Date()
+   };
+
    await db.collection("users").doc(m).set(data,{merge:true});
    localStorage.setItem("user",JSON.stringify(data));
+
    alert("Profile Saved / Updated");
 
  }catch(e){
-   alert("Error: "+e.message);
+   alert("Error: " + e.message);
  }
+}
+
+/* SHOW PROFILE AFTER LOGIN */
+function showProfile(d){
+ loginBox.classList.add("hide");
+ registerBox.classList.remove("hide");
+
+ document.getElementById("name").value = d.name || "";
+ document.getElementById("mobile").value = d.mobile || "";
+ document.getElementById("shop").value = d.shop || "";
+ document.getElementById("address").value = d.address || "";
 }
 
 /* LOGOUT */
@@ -164,18 +147,12 @@ function logout(){
  location.reload();
 }
 
-/* HOME */
-function goHome(){
- location.href="home.html";
-}
-
-/* BACK */
-function back(){
- registerBox.classList.add("hide");
- loginBox.classList.remove("hide");
- headerBtns.classList.add("hide");
+/* AUTO LOAD PROFILE */
+let u = localStorage.getItem("user");
+if(u){
+ showProfile(JSON.parse(u));
 }
 </script>
 
 </body>
- </html>
+</html>
