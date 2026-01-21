@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Login – Shree Balaji Oil Agency</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+body{
+ margin:0;
+ font-family:Arial;
+ background:#f4f6f8;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ height:100vh
+}
+.card{
+ background:#fff;
+ width:90%;
+ max-width:360px;
+ padding:20px;
+ border-radius:14px;
+ box-shadow:0 4px 10px rgba(0,0,0,.15);
+ text-align:center
+}
+h2{margin-bottom:10px;color:#03A64A}
+input{
+ width:100%;
+ padding:12px;
+ margin-top:12px;
+ border-radius:8px;
+ border:1px solid #ccc;
+ font-size:16px
+}
+button{
+ width:100%;
+ margin-top:15px;
+ padding:12px;
+ background:#03A64A;
+ border:none;
+ color:#fff;
+ font-size:17px;
+ border-radius:8px;
+ cursor:pointer
+}
+.small{font-size:13px;color:#777;margin-top:10px}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+ <h2>Shree Balaji Oil Agency</h2>
+ <p class="small">Login with Mobile Number</p>
+
+ <input id="name" placeholder="Your Name">
+ <input id="mobile" placeholder="Mobile Number" maxlength="10">
+
+ <button onclick="login()">Login</button>
+</div>
+
+<script>
+firebase.initializeApp({
+ apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain: "balajimere-c8eb9.firebaseapp.com",
+ projectId: "balajimere-c8eb9"
+});
+const db = firebase.firestore();
+
+/* LOGIN WITHOUT OTP */
+async function login(){
+ let n = name.value.trim();
+ let m = mobile.value.trim();
+
+ if(!n || m.length!=10){
+  alert("Enter valid name & 10 digit mobile number");
+  return;
+ }
+
+ let ref = db.collection("users").doc(m);
+ let doc = await ref.get();
+
+ if(!doc.exists){
+  await ref.set({
+   name:n,
+   mobile:m,
+   time:new Date()
+  });
+ }
+
+ localStorage.setItem("user",JSON.stringify({name:n,mobile:m}));
+ location.href="home.html";
+}
+</script>
+
+</body>
+</html>
