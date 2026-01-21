@@ -43,14 +43,12 @@ button.gray{background:#777}
 
 <div id="dashboard" style="display:none">
 
-  <!-- CATEGORY -->
   <div class="card">
     <h3>Add Category</h3>
     <input id="catName" placeholder="Category Name">
     <button onclick="addCategory()">Add Category</button>
   </div>
 
-  <!-- ADD / EDIT PRODUCT -->
   <div class="card">
     <h3>Add / Edit Product</h3>
 
@@ -66,13 +64,11 @@ button.gray{background:#777}
     <button onclick="addProduct()">Save Product</button>
   </div>
 
-  <!-- PRODUCTS -->
   <div class="card">
     <h3>Products</h3>
     <div id="productList" class="scroll"></div>
   </div>
 
-  <!-- REDIRECT BUTTONS -->
   <div class="card">
     <button onclick="location.href='user.html'">View Users</button>
     <button onclick="location.href='admin-order.html'">View Orders</button>
@@ -128,18 +124,25 @@ function loadCategories(){
  });
 }
 
-/* ADD / UPDATE PRODUCT */
+/* ✅ IMAGE UPLOAD FIXED */
 async function addProduct(){
- let urls=[];
- if(images.files.length){
-  for(let f of images.files){
-   let fd=new FormData();
-   fd.append("image",f);
-   let r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,{
-     method:"POST",body:fd
-   });
-   let j=await r.json();
-   if(j.success) urls.push(j.data.url);
+ let imageInput = document.getElementById("images");
+ let urls = [];
+
+ if(imageInput && imageInput.files && imageInput.files.length > 0){
+  for(const file of imageInput.files){
+   let fd = new FormData();
+   fd.append("image", file);
+
+   let res = await fetch(
+     "https://api.imgbb.com/1/upload?key=" + IMGBB_KEY,
+     { method:"POST", body:fd }
+   );
+
+   let json = await res.json();
+   if(json && json.data && json.data.url){
+     urls.push(json.data.url);
+   }
   }
  }
 
@@ -150,7 +153,7 @@ async function addProduct(){
   mrp:pmrp.value,
   description:pdesc.value,
   images:urls,
-  image:urls[0]||"",
+  image:urls[0] || "",
   hidden:false,
   pinned:false,
   time:new Date()
@@ -162,10 +165,15 @@ async function addProduct(){
   await db.collection("products").add(data);
  }
 
- pid.value=""; pname.value=""; pprice.value=""; pmrp.value=""; pdesc.value=""; images.value="";
+ pid.value="";
+ pname.value="";
+ pprice.value="";
+ pmrp.value="";
+ pdesc.value="";
+ imageInput.value="";
 }
 
-/* LOAD PRODUCTS */
+/* PRODUCTS */
 function loadProducts(){
  db.collection("products").onSnapshot(s=>{
   productList.innerHTML="";
@@ -195,12 +203,10 @@ function editProduct(id,p){
  pcategory.value=p.category||"";
  window.scrollTo(0,0);
 }
-
 function delProduct(id){
  if(confirm("Delete product?"))
   db.collection("products").doc(id).delete();
 }
-
 function toggleHide(id,v){
  db.collection("products").doc(id).update({hidden:!v});
 }
@@ -210,4 +216,4 @@ function togglePin(id,v){
 </script>
 
 </body>
-</html>
+  </html>
