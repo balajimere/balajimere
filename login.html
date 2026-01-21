@@ -86,10 +86,10 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* 🔹 CHECK LOGIN */
+/* CHECK LOGIN */
 async function checkLogin(){
  let m = loginMobile.value.trim();
- if(m.length!=10){
+ if(m.length !== 10){
   alert("Enter valid 10 digit mobile number");
   return;
  }
@@ -100,50 +100,53 @@ async function checkLogin(){
    localStorage.setItem("user",JSON.stringify(doc.data()));
    location.href="home.html";
  }else{
-   mode.value="new";
-   mobile.value=m;
+   mobile.value = m;
    loginBox.classList.add("hide");
    registerBox.classList.remove("hide");
  }
 }
 
-/* 🔹 SAVE / UPDATE USER */
+/* SAVE / UPDATE USER — ✅ FIXED */
 async function saveUser(){
 
- if(!name.value || !mobile.value || !shop.value || !address.value){
+ let n = name.value.trim();
+ let m = mobile.value.trim();
+ let s = shop.value.trim();
+ let a = address.value.trim();
+
+ if(n==="" || m==="" || s==="" || a===""){
   alert("Fill all details");
   return;
  }
 
  let data={
-  name:name.value,
-  mobile:mobile.value,
-  shop:shop.value,
-  address:address.value,
+  name:n,
+  mobile:m,
+  shop:s,
+  address:a,
   updated:new Date()
  };
 
- await db.collection("users").doc(mobile.value).set(data,{merge:true});
+ await db.collection("users").doc(m).set(data,{merge:true});
 
  localStorage.setItem("user",JSON.stringify(data));
  location.href="home.html";
 }
 
-/* 🔹 BACK */
+/* BACK */
 function back(){
  registerBox.classList.add("hide");
  loginBox.classList.remove("hide");
 }
 
-/* 🔹 AUTO LOAD FOR EDIT (IF USER LOGGED) */
+/* AUTO LOAD FOR EDIT */
 let u = localStorage.getItem("user");
 if(u){
  let d = JSON.parse(u);
- name.value=d.name;
- mobile.value=d.mobile;
- shop.value=d.shop;
- address.value=d.address;
- mode.value="edit";
+ name.value=d.name || "";
+ mobile.value=d.mobile || "";
+ shop.value=d.shop || "";
+ address.value=d.address || "";
  loginBox.classList.add("hide");
  registerBox.classList.remove("hide");
 }
