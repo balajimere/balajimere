@@ -5,7 +5,6 @@
 <title>Login – Shree Balaji Oil Agency</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -52,19 +51,14 @@ button.red{background:var(--red)}
 <body>
 
 <div class="card">
-
 <h2>Shree Balaji Oil Agency</h2>
 
-<!-- LOGIN -->
 <div id="loginBox">
  <input id="loginMobile" placeholder="Enter Mobile Number" maxlength="10">
  <button onclick="checkLogin()">Login</button>
 </div>
 
-<!-- REGISTER / EDIT -->
 <div id="registerBox" class="hide">
- <input type="hidden" id="mode" value="new">
-
  <input id="name" placeholder="Name">
  <input id="mobile" placeholder="Mobile Number" maxlength="10">
  <input id="shop" placeholder="Shop Name">
@@ -75,7 +69,6 @@ button.red{background:var(--red)}
 </div>
 
 <p class="small">No OTP • No Password • Fast Login</p>
-
 </div>
 
 <script>
@@ -84,71 +77,55 @@ firebase.initializeApp({
  authDomain: "balajimere-c8eb9.firebaseapp.com",
  projectId: "balajimere-c8eb9"
 });
+
 const db = firebase.firestore();
 
 /* CHECK LOGIN */
 async function checkLogin(){
  let m = loginMobile.value.trim();
- if(m.length !== 10){
-  alert("Enter valid 10 digit mobile number");
-  return;
- }
+ if(m.length!==10){ alert("Enter valid mobile"); return; }
 
  let doc = await db.collection("users").doc(m).get();
-
  if(doc.exists){
    localStorage.setItem("user",JSON.stringify(doc.data()));
    location.href="home.html";
  }else{
-   mobile.value = m;
+   mobile.value=m;
    loginBox.classList.add("hide");
    registerBox.classList.remove("hide");
  }
 }
 
-/* SAVE / UPDATE USER — ✅ FIXED */
+/* SAVE USER */
 async function saveUser(){
+ try{
+   let n=name.value.trim();
+   let m=mobile.value.trim();
+   let s=shop.value.trim();
+   let a=address.value.trim();
 
- let n = name.value.trim();
- let m = mobile.value.trim();
- let s = shop.value.trim();
- let a = address.value.trim();
+   if(!n||!m||!s||!a){
+     alert("Fill all details");
+     return;
+   }
 
- if(n==="" || m==="" || s==="" || a===""){
-  alert("Fill all details");
-  return;
+   let data={name:n,mobile:m,shop:s,address:a,time:new Date()};
+
+   await db.collection("users").doc(m).set(data,{merge:true});
+
+   alert("Saved successfully");
+   localStorage.setItem("user",JSON.stringify(data));
+   location.href="home.html";
+
+ }catch(err){
+   alert("Firebase Error: "+err.message);
  }
-
- let data={
-  name:n,
-  mobile:m,
-  shop:s,
-  address:a,
-  updated:new Date()
- };
-
- await db.collection("users").doc(m).set(data,{merge:true});
-
- localStorage.setItem("user",JSON.stringify(data));
- location.href="home.html";
 }
 
 /* BACK */
 function back(){
  registerBox.classList.add("hide");
  loginBox.classList.remove("hide");
-}
-
-/* AUTO LOAD FOR EDIT */
-let u = localStorage.getItem("user");
-if(u){
- let d = JSON.parse(u);
- name.value=d.name || "";
- mobile.value=d.mobile || "";
- shop.value=d.shop || "";
- address.value=d.address || "";
- loginBox.classList.add("hide");
- registerBox.classList.remove("hide");
 }
 </script>
 
