@@ -82,7 +82,7 @@ const db = firebase.firestore();
 
 /* CHECK LOGIN */
 async function checkLogin(){
- let m = loginMobile.value.trim();
+ let m = document.getElementById("loginMobile").value.trim();
  if(m.length!==10){ alert("Enter valid mobile"); return; }
 
  let doc = await db.collection("users").doc(m).get();
@@ -90,35 +90,41 @@ async function checkLogin(){
    localStorage.setItem("user",JSON.stringify(doc.data()));
    location.href="home.html";
  }else{
-   mobile.value=m;
+   document.getElementById("mobile").value = m;
    loginBox.classList.add("hide");
    registerBox.classList.remove("hide");
  }
 }
 
-/* SAVE USER */
+/* ✅ SAVE USER — FINAL FIX */
 async function saveUser(){
  try{
-   let n=name.value.trim();
-   let m=mobile.value.trim();
-   let s=shop.value.trim();
-   let a=address.value.trim();
+   let n = document.getElementById("name").value.trim();
+   let m = document.getElementById("mobile").value.trim();
+   let s = document.getElementById("shop").value.trim();
+   let a = document.getElementById("address").value.trim();
 
-   if(!n||!m||!s||!a){
+   if(!n || !m || !s || !a){
      alert("Fill all details");
      return;
    }
 
-   let data={name:n,mobile:m,shop:s,address:a,time:new Date()};
+   let data={
+     name:n,
+     mobile:m,
+     shop:s,
+     address:a,
+     time:new Date()
+   };
 
    await db.collection("users").doc(m).set(data,{merge:true});
 
-   alert("Saved successfully");
    localStorage.setItem("user",JSON.stringify(data));
+   alert("Data saved successfully");
    location.href="home.html";
 
- }catch(err){
-   alert("Firebase Error: "+err.message);
+ }catch(e){
+   alert("Error: "+e.message);
  }
 }
 
