@@ -15,29 +15,9 @@ body{
  font-family:Arial;
  background:#f4f6f8;
  display:flex;
+ justify-content:center;
+ align-items:center;
  height:100vh
-}
-.menu{
- width:60px;
- background:#03A64A;
- display:flex;
- justify-content:center;
- padding-top:20px
-}
-.menu button{
- background:#fff;
- border:none;
- border-radius:50%;
- width:42px;
- height:42px;
- cursor:pointer;
- font-size:18px
-}
-.main{
- flex:1;
- display:flex;
- justify-content:center;
- align-items:center
 }
 .card{
  background:#fff;
@@ -45,7 +25,8 @@ body{
  max-width:380px;
  padding:20px;
  border-radius:14px;
- box-shadow:0 4px 10px rgba(0,0,0,.15)
+ box-shadow:0 4px 10px rgba(0,0,0,.15);
+ position:relative
 }
 h2{text-align:center;color:var(--green)}
 input,button{
@@ -65,57 +46,51 @@ button{
 button.red{background:var(--red)}
 .small{text-align:center;font-size:13px;color:#777;margin-top:10px}
 .hide{display:none}
-.profile{text-align:center}
-.profile img{
- width:90px;height:90px;border-radius:50%;
- object-fit:cover;border:2px solid #03A64A
+
+/* HEADER BUTTONS */
+.header{
+ position:absolute;
+ top:10px;
+ right:10px;
+ display:flex;
+ gap:6px
 }
-.bottom{
- position:fixed;bottom:0;left:0;right:0;
- background:#fff;border-top:1px solid #ccc;
- padding:8px;text-align:center
+.header button{
+ padding:6px 10px;
+ font-size:12px
 }
 </style>
 </head>
 
 <body>
 
-<div class="menu">
- <button onclick="goHome()">🏠</button>
-</div>
-
-<div class="main">
 <div class="card">
+
+<div class="header hide" id="headerBtns">
+ <button onclick="goHome()">Home</button>
+ <button class="red" onclick="logout()">Logout</button>
+</div>
 
 <h2>Shree Balaji Oil Agency</h2>
 
+<!-- LOGIN -->
 <div id="loginBox">
  <input id="loginMobile" placeholder="Enter Mobile Number" maxlength="10">
  <button onclick="checkLogin()">Login</button>
 </div>
 
+<!-- REGISTER / PROFILE -->
 <div id="registerBox" class="hide">
- <div class="profile">
-   <img id="photoPreview" src="https://via.placeholder.com/100">
-   <input type="file" id="photo" accept="image/*">
- </div>
-
  <input id="name" placeholder="Name">
  <input id="mobile" placeholder="Mobile Number" maxlength="10">
  <input id="shop" placeholder="Shop Name">
  <input id="address" placeholder="Address">
 
- <button onclick="saveUser()">Save</button>
+ <button onclick="saveUser()">Save / Update</button>
  <button class="red" onclick="back()">Back</button>
 </div>
 
 <p class="small">No OTP • No Password • Fast Login</p>
-
-</div>
-</div>
-
-<div class="bottom">
- <button onclick="goHome()">🏠 Home</button>
 </div>
 
 <script>
@@ -124,76 +99,83 @@ firebase.initializeApp({
  authDomain: "balajimere-c8eb9.firebaseapp.com",
  projectId: "balajimere-c8eb9"
 });
-
 const db = firebase.firestore();
 
-/* IMAGE API KEY */
-const IMAGE_API_KEY = "5e77bfe737324a6c147697a13fefcb3d";
+/* AUTO LOGIN */
+let savedUser = localStorage.getItem("user");
+if(savedUser){
+ showProfile(JSON.parse(savedUser));
+}
 
-/* LOGIN */
+/* CHECK LOGIN */
 async function checkLogin(){
- let m = loginMobile.value.trim();
+ let m = document.getElementById("loginMobile").value.trim();
  if(m.length!==10){ alert("Enter valid mobile"); return; }
 
  let doc = await db.collection("users").doc(m).get();
  if(doc.exists){
+   localStorage.setItem("user",JSON.stringify(doc.data()));
    showProfile(doc.data());
  }else{
-   mobile.value = m;
+   document.getElementById("mobile").value = m;
    loginBox.classList.add("hide");
    registerBox.classList.remove("hide");
  }
 }
 
 /* SHOW PROFILE */
-function showProfile(d){
+function showProfile(data){
  loginBox.classList.add("hide");
  registerBox.classList.remove("hide");
+ headerBtns.classList.remove("hide");
 
- name.value=d.name||"";
- mobile.value=d.mobile||"";
- shop.value=d.shop||"";
- address.value=d.address||"";
- if(d.photo) photoPreview.src=d.photo;
+ name.value = data.name || "";
+ mobile.value = data.mobile || "";
+ shop.value = data.shop || "";
+ address.value = data.address || "";
 }
 
-/* SAVE / UPDATE */
+/* SAVE USER (NO REDIRECT) */
 async function saveUser(){
- let n=name.value.trim();
- let m=mobile.value.trim();
- let s=shop.value.trim();
- let a=address.value.trim();
- if(!n||!m||!s||!a){ alert("Fill all details"); return; }
+ try{
+   let n=name.value.trim();
+   let m=mobile.value.trim();
+   let s=shop.value.trim();
+   let a=address.value.trim();
 
- let photoURL="";
+   if(!n||!m||!s||!a){
+     alert("Fill all details");
+     return;
+   }
 
- if(photo.files[0]){
-   let fd=new FormData();
-   fd.append("image",photo.files[0]);
+   let data={name:n,mobile:m,shop:s,address:a,time:new Date()};
+   await db.collection("users").doc(m).set(data,{merge:true});
+   localStorage.setItem("user",JSON.stringify(data));
+   alert("Profile Saved / Updated");
 
-   let res=await fetch(
-     "https://api.imgbb.com/1/upload?key="+IMAGE_API_KEY,
-     {method:"POST",body:fd}
-   );
-   let img=await res.json();
-   photoURL=img.data.url;
-   photoPreview.src=photoURL;
+ }catch(e){
+   alert("Error: "+e.message);
  }
+}
 
- let data={name:n,mobile:m,shop:s,address:a,photo:photoURL,time:new Date()};
- await db.collection("users").doc(m).set(data,{merge:true});
- alert("Profile Saved / Updated");
+/* LOGOUT */
+function logout(){
+ localStorage.removeItem("user");
+ location.reload();
 }
 
 /* HOME */
-function goHome(){ location.href="home.html"; }
+function goHome(){
+ location.href="home.html";
+}
 
 /* BACK */
 function back(){
  registerBox.classList.add("hide");
  loginBox.classList.remove("hide");
+ headerBtns.classList.add("hide");
 }
 </script>
 
 </body>
-</html>
+ </html>
