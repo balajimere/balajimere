@@ -9,9 +9,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
 <style>
+:root{--green:#03A64A;--red:#F21D44}
 body{
  margin:0;
  font-family:Arial;
@@ -23,47 +22,57 @@ body{
 }
 .card{
  background:#fff;
- width:90%;
- max-width:360px;
+ width:92%;
+ max-width:380px;
  padding:20px;
  border-radius:14px;
- box-shadow:0 4px 10px rgba(0,0,0,.15);
- text-align:center
+ box-shadow:0 4px 10px rgba(0,0,0,.15)
 }
-h2{margin-bottom:10px;color:#03A64A}
-input{
+h2{text-align:center;color:var(--green)}
+input,button{
  width:100%;
  padding:12px;
- margin-top:12px;
+ margin-top:10px;
  border-radius:8px;
  border:1px solid #ccc;
- font-size:16px
+ font-size:15px
 }
 button{
- width:100%;
- margin-top:15px;
- padding:12px;
- background:#03A64A;
+ background:var(--green);
  border:none;
  color:#fff;
- font-size:17px;
- border-radius:8px;
  cursor:pointer
 }
-.small{font-size:13px;color:#777;margin-top:10px}
+button.red{background:var(--red)}
+.small{text-align:center;font-size:13px;color:#777;margin-top:10px}
+.hide{display:none}
 </style>
 </head>
 
 <body>
 
 <div class="card">
- <h2>Shree Balaji Oil Agency</h2>
- <p class="small">Login with Mobile Number</p>
 
- <input id="name" placeholder="Your Name">
+<h2>Shree Balaji Oil Agency</h2>
+
+<!-- LOGIN -->
+<div id="loginBox">
+ <input id="loginMobile" placeholder="Enter Mobile Number" maxlength="10">
+ <button onclick="checkLogin()">Login</button>
+</div>
+
+<!-- NEW USER -->
+<div id="registerBox" class="hide">
+ <input id="name" placeholder="Name">
  <input id="mobile" placeholder="Mobile Number" maxlength="10">
+ <input id="shop" placeholder="Shop Name">
+ <input id="address" placeholder="Address">
+ <button onclick="register()">Create New Account</button>
+ <button class="red" onclick="back()">Back</button>
+</div>
 
- <button onclick="login()">Login</button>
+<p class="small">No OTP • No Password • Fast Login</p>
+
 </div>
 
 <script>
@@ -74,29 +83,50 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* LOGIN WITHOUT OTP */
-async function login(){
- let n = name.value.trim();
- let m = mobile.value.trim();
-
- if(!n || m.length!=10){
-  alert("Enter valid name & 10 digit mobile number");
+/* CHECK LOGIN */
+async function checkLogin(){
+ let m = loginMobile.value.trim();
+ if(m.length!=10){
+  alert("Enter valid 10 digit mobile number");
   return;
  }
 
- let ref = db.collection("users").doc(m);
- let doc = await ref.get();
+ let doc = await db.collection("users").doc(m).get();
 
- if(!doc.exists){
-  await ref.set({
-   name:n,
-   mobile:m,
-   time:new Date()
-  });
+ if(doc.exists){
+   localStorage.setItem("user",JSON.stringify(doc.data()));
+   location.href="home.html";
+ }else{
+   mobile.value = m;
+   loginBox.classList.add("hide");
+   registerBox.classList.remove("hide");
+ }
+}
+
+/* REGISTER */
+async function register(){
+ if(!name.value || !mobile.value || !shop.value || !address.value){
+  alert("Fill all details");
+  return;
  }
 
- localStorage.setItem("user",JSON.stringify({name:n,mobile:m}));
+ let data={
+  name:name.value,
+  mobile:mobile.value,
+  shop:shop.value,
+  address:address.value,
+  time:new Date()
+ };
+
+ await db.collection("users").doc(mobile.value).set(data);
+ localStorage.setItem("user",JSON.stringify(data));
  location.href="home.html";
+}
+
+/* BACK */
+function back(){
+ registerBox.classList.add("hide");
+ loginBox.classList.remove("hide");
 }
 </script>
 
