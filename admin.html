@@ -20,9 +20,11 @@ header{background:var(--green);color:#fff;padding:14px;text-align:center;font-si
 input,textarea,button,select{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
 button{border:none;background:var(--green);color:#fff;font-size:15px;cursor:pointer}
 button.red{background:var(--red)}
+button.gray{background:#777}
 .product{border-bottom:1px solid #eee;padding:8px 0}
 .small{font-size:13px;color:#666}
 .scroll{max-height:260px;overflow-y:auto}
+.actions button{width:auto;margin-right:6px;margin-top:6px;font-size:13px}
 </style>
 </head>
 
@@ -59,7 +61,6 @@ button.red{background:var(--red)}
     <input id="pprice" placeholder="Price">
     <input id="pmrp" placeholder="MRP">
     <textarea id="pdesc" placeholder="Product Description"></textarea>
-    <input type="file" id="images" multiple>
 
     <button onclick="addProduct()">Save Product</button>
   </div>
@@ -70,16 +71,10 @@ button.red{background:var(--red)}
     <div id="productList" class="scroll"></div>
   </div>
 
-  <!-- USERS -->
+  <!-- NAV BUTTONS -->
   <div class="card">
-    <h3>Users</h3>
-    <div id="users" class="scroll"></div>
-  </div>
-
-  <!-- ORDERS -->
-  <div class="card">
-    <h3>Orders</h3>
-    <div id="orders" class="scroll"></div>
+    <button onclick="location.href='user.html'">View Users</button>
+    <button onclick="location.href='admin-order.html'">View Orders</button>
   </div>
 
   <button class="red" onclick="logout()">Logout</button>
@@ -107,7 +102,7 @@ auth.onAuthStateChanged(u=>{
  if(u && u.email==="balajimere.admin@gmail.com"){
   loginBox.style.display="none";
   dashboard.style.display="block";
-  loadProducts(); loadOrders(); loadUsers(); loadCategories();
+  loadProducts(); loadCategories();
  }else{
   dashboard.style.display="none";
   loginBox.style.display="block";
@@ -138,6 +133,8 @@ async function addProduct(){
   price:pprice.value,
   mrp:pmrp.value,
   description:pdesc.value,
+  hidden:false,
+  pinned:false,
   time:new Date()
  };
  if(pid.value){
@@ -157,47 +154,35 @@ function loadProducts(){
     <div class="product">
      <b>${p.name}</b><br>
      <span class="small">${p.category} | ₹${p.price}</span>
+     <div class="actions">
+      <button onclick="editProduct('${d.id}',${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button>
+      <button class="red" onclick="delProduct('${d.id}')">Delete</button>
+      <button class="gray" onclick="toggleHide('${d.id}',${p.hidden})">${p.hidden?"Show":"Hide"}</button>
+      <button onclick="togglePin('${d.id}',${p.pinned})">${p.pinned?"Unpin":"Pin"}</button>
+     </div>
     </div>`;
   });
  });
 }
 
-/* USERS */
-function loadUsers(){
- db.collection("users").onSnapshot(s=>{
-  users.innerHTML="";
-  s.forEach(d=>{
-   let u=d.data();
-   users.innerHTML+=`
-    <div class="product">
-     <b>${u.name}</b><br>
-     <span class="small">${u.mobile} | ${u.shop}</span>
-    </div>`;
-  });
- });
+function editProduct(id,p){
+ pid.value=id;
+ pname.value=p.name||"";
+ pprice.value=p.price||"";
+ pmrp.value=p.mrp||"";
+ pdesc.value=p.description||"";
+ pcategory.value=p.category||"";
+ window.scrollTo(0,0);
 }
-
-/* ORDERS */
-function loadOrders(){
- db.collection("orders").onSnapshot(s=>{
-  orders.innerHTML="";
-  s.forEach(d=>{
-   let o=d.data();
-   orders.innerHTML+=`
-    <div class="product">
-     <b>${o.product}</b><br>
-     <span class="small">${o.name} | ${o.mobile}</span><br>
-     <select onchange="updateOrder('${d.id}',this.value)">
-      <option ${o.status==="Pending"?"selected":""}>Pending</option>
-      <option ${o.status==="Confirmed"?"selected":""}>Confirmed</option>
-      <option ${o.status==="Delivered"?"selected":""}>Delivered</option>
-     </select>
-    </div>`;
-  });
- });
+function delProduct(id){
+ if(confirm("Delete product?"))
+  db.collection("products").doc(id).delete();
 }
-function updateOrder(id,status){
- db.collection("orders").doc(id).update({status:status});
+function toggleHide(id,v){
+ db.collection("products").doc(id).update({hidden:!v});
+}
+function togglePin(id,v){
+ db.collection("products").doc(id).update({pinned:!v});
 }
 </script>
 
