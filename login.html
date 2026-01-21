@@ -61,13 +61,16 @@ button.red{background:var(--red)}
  <button onclick="checkLogin()">Login</button>
 </div>
 
-<!-- NEW USER -->
+<!-- REGISTER / EDIT -->
 <div id="registerBox" class="hide">
+ <input type="hidden" id="mode" value="new">
+
  <input id="name" placeholder="Name">
  <input id="mobile" placeholder="Mobile Number" maxlength="10">
  <input id="shop" placeholder="Shop Name">
  <input id="address" placeholder="Address">
- <button onclick="register()">Create New Account</button>
+
+ <button onclick="saveUser()">Save</button>
  <button class="red" onclick="back()">Back</button>
 </div>
 
@@ -83,7 +86,7 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 
-/* CHECK LOGIN */
+/* 🔹 CHECK LOGIN */
 async function checkLogin(){
  let m = loginMobile.value.trim();
  if(m.length!=10){
@@ -97,14 +100,16 @@ async function checkLogin(){
    localStorage.setItem("user",JSON.stringify(doc.data()));
    location.href="home.html";
  }else{
-   mobile.value = m;
+   mode.value="new";
+   mobile.value=m;
    loginBox.classList.add("hide");
    registerBox.classList.remove("hide");
  }
 }
 
-/* REGISTER */
-async function register(){
+/* 🔹 SAVE / UPDATE USER */
+async function saveUser(){
+
  if(!name.value || !mobile.value || !shop.value || !address.value){
   alert("Fill all details");
   return;
@@ -115,18 +120,32 @@ async function register(){
   mobile:mobile.value,
   shop:shop.value,
   address:address.value,
-  time:new Date()
+  updated:new Date()
  };
 
- await db.collection("users").doc(mobile.value).set(data);
+ await db.collection("users").doc(mobile.value).set(data,{merge:true});
+
  localStorage.setItem("user",JSON.stringify(data));
  location.href="home.html";
 }
 
-/* BACK */
+/* 🔹 BACK */
 function back(){
  registerBox.classList.add("hide");
  loginBox.classList.remove("hide");
+}
+
+/* 🔹 AUTO LOAD FOR EDIT (IF USER LOGGED) */
+let u = localStorage.getItem("user");
+if(u){
+ let d = JSON.parse(u);
+ name.value=d.name;
+ mobile.value=d.mobile;
+ shop.value=d.shop;
+ address.value=d.address;
+ mode.value="edit";
+ loginBox.classList.add("hide");
+ registerBox.classList.remove("hide");
 }
 </script>
 
