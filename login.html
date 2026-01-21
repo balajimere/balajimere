@@ -15,9 +15,29 @@ body{
  font-family:Arial;
  background:#f4f6f8;
  display:flex;
- justify-content:center;
- align-items:center;
  height:100vh
+}
+.menu{
+ width:60px;
+ background:#03A64A;
+ display:flex;
+ justify-content:center;
+ padding-top:20px
+}
+.menu button{
+ background:#fff;
+ border:none;
+ border-radius:50%;
+ width:42px;
+ height:42px;
+ cursor:pointer;
+ font-size:18px
+}
+.main{
+ flex:1;
+ display:flex;
+ justify-content:center;
+ align-items:center
 }
 .card{
  background:#fff;
@@ -45,12 +65,28 @@ button{
 button.red{background:var(--red)}
 .small{text-align:center;font-size:13px;color:#777;margin-top:10px}
 .hide{display:none}
+.profile{text-align:center}
+.profile img{
+ width:90px;height:90px;border-radius:50%;
+ object-fit:cover;border:2px solid #03A64A
+}
+.bottom{
+ position:fixed;bottom:0;left:0;right:0;
+ background:#fff;border-top:1px solid #ccc;
+ padding:8px;text-align:center
+}
 </style>
 </head>
 
 <body>
 
+<div class="menu">
+ <button onclick="goHome()">🏠</button>
+</div>
+
+<div class="main">
 <div class="card">
+
 <h2>Shree Balaji Oil Agency</h2>
 
 <div id="loginBox">
@@ -59,6 +95,11 @@ button.red{background:var(--red)}
 </div>
 
 <div id="registerBox" class="hide">
+ <div class="profile">
+   <img id="photoPreview" src="https://via.placeholder.com/100">
+   <input type="file" id="photo" accept="image/*">
+ </div>
+
  <input id="name" placeholder="Name">
  <input id="mobile" placeholder="Mobile Number" maxlength="10">
  <input id="shop" placeholder="Shop Name">
@@ -69,6 +110,12 @@ button.red{background:var(--red)}
 </div>
 
 <p class="small">No OTP • No Password • Fast Login</p>
+
+</div>
+</div>
+
+<div class="bottom">
+ <button onclick="goHome()">🏠 Home</button>
 </div>
 
 <script>
@@ -80,53 +127,66 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 
-/* CHECK LOGIN */
+/* IMAGE API KEY */
+const IMAGE_API_KEY = "5e77bfe737324a6c147697a13fefcb3d";
+
+/* LOGIN */
 async function checkLogin(){
- let m = document.getElementById("loginMobile").value.trim();
+ let m = loginMobile.value.trim();
  if(m.length!==10){ alert("Enter valid mobile"); return; }
 
  let doc = await db.collection("users").doc(m).get();
  if(doc.exists){
-   localStorage.setItem("user",JSON.stringify(doc.data()));
-   location.href="home.html";
+   showProfile(doc.data());
  }else{
-   document.getElementById("mobile").value = m;
+   mobile.value = m;
    loginBox.classList.add("hide");
    registerBox.classList.remove("hide");
  }
 }
 
-/* ✅ SAVE USER — FINAL FIX */
-async function saveUser(){
- try{
-   let n = document.getElementById("name").value.trim();
-   let m = document.getElementById("mobile").value.trim();
-   let s = document.getElementById("shop").value.trim();
-   let a = document.getElementById("address").value.trim();
+/* SHOW PROFILE */
+function showProfile(d){
+ loginBox.classList.add("hide");
+ registerBox.classList.remove("hide");
 
-   if(!n || !m || !s || !a){
-     alert("Fill all details");
-     return;
-   }
-
-   let data={
-     name:n,
-     mobile:m,
-     shop:s,
-     address:a,
-     time:new Date()
-   };
-
-   await db.collection("users").doc(m).set(data,{merge:true});
-
-   localStorage.setItem("user",JSON.stringify(data));
-   alert("Data saved successfully");
-   location.href="home.html";
-
- }catch(e){
-   alert("Error: "+e.message);
- }
+ name.value=d.name||"";
+ mobile.value=d.mobile||"";
+ shop.value=d.shop||"";
+ address.value=d.address||"";
+ if(d.photo) photoPreview.src=d.photo;
 }
+
+/* SAVE / UPDATE */
+async function saveUser(){
+ let n=name.value.trim();
+ let m=mobile.value.trim();
+ let s=shop.value.trim();
+ let a=address.value.trim();
+ if(!n||!m||!s||!a){ alert("Fill all details"); return; }
+
+ let photoURL="";
+
+ if(photo.files[0]){
+   let fd=new FormData();
+   fd.append("image",photo.files[0]);
+
+   let res=await fetch(
+     "https://api.imgbb.com/1/upload?key="+IMAGE_API_KEY,
+     {method:"POST",body:fd}
+   );
+   let img=await res.json();
+   photoURL=img.data.url;
+   photoPreview.src=photoURL;
+ }
+
+ let data={name:n,mobile:m,shop:s,address:a,photo:photoURL,time:new Date()};
+ await db.collection("users").doc(m).set(data,{merge:true});
+ alert("Profile Saved / Updated");
+}
+
+/* HOME */
+function goHome(){ location.href="home.html"; }
 
 /* BACK */
 function back(){
