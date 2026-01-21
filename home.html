@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Products | Balaji</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<style>
+body { font-family: Arial; background:#f4f6f8; margin:0; }
+header { background:#0d6efd; color:#fff; padding:15px; text-align:center; }
+.container { padding:15px; }
+.products { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:15px; }
+.card {
+  background:#fff;
+  border-radius:10px;
+  padding:10px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.1);
+  text-align:center;
+}
+.card img { width:100%; height:140px; object-fit:cover; border-radius:8px; }
+.price { color:green; font-weight:bold; }
+.admin { background:#fff; padding:15px; margin:15px; border-radius:10px; display:none; }
+button { padding:8px 12px; border:none; border-radius:5px; cursor:pointer; }
+.delete { background:red; color:white; margin-top:5px; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h2>Balaji Products</h2>
+</header>
+
+<div class="container">
+  <div class="products" id="productList"></div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="admin" id="adminPanel">
+  <h3>Admin Panel</h3>
+
+  <input type="email" id="email" placeholder="Admin Email"><br><br>
+  <input type="password" id="password" placeholder="Password"><br><br>
+  <button onclick="login()">Admin Login</button>
+  <button onclick="logout()">Logout</button>
+
+  <hr>
+
+  <input type="text" id="pname" placeholder="Product Name"><br><br>
+  <input type="text" id="price" placeholder="Price"><br><br>
+  <input type="file" id="image"><br><br>
+  <button onclick="addProduct()">Add Product</button>
+</div>
+
+<script>
+/* 🔥 Firebase Config */
+const firebaseConfig = {
+  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+  authDomain: "balajimere-c8eb9.firebaseapp.com",
+  projectId: "balajimere-c8eb9",
+  storageBucket: "balajimere-c8eb9.appspot.com",
+  messagingSenderId: "354355662744",
+  appId: "1:354355662744:web:dc4879a69dc77d2dc1e5ed",
+  measurementId: "G-8WVB9MLWS8"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+/* 🔹 LOAD PRODUCTS */
+function loadProducts(){
+  db.collection("products").onSnapshot(snapshot=>{
+    productList.innerHTML = "";
+    snapshot.forEach(doc=>{
+      const p = doc.data();
+      productList.innerHTML += `
+        <div class="card">
+          <img src="${p.imageUrl}">
+          <h4>${p.name}</h4>
+          <div class="price">₹${p.price}</div>
+          ${adminLogged ? `<button class="delete" onclick="deleteProduct('${doc.id}')">Delete</button>` : ""}
+        </div>
+      `;
+    });
+  });
+}
+
+/* 🔹 ADMIN LOGIN */
+let adminLogged = false;
+
+function login(){
+  auth.signInWithEmailAndPassword(email.value, password.value)
+  .then(()=>{
+    alert("Admin Logged In");
+  }).catch(e=>alert(e.message));
+}
+
+function logout(){
+  auth.signOut();
+}
+
+/* 🔹 AUTH CHECK */
+auth.onAuthStateChanged(user=>{
+  if(user){
+    adminLogged = true;
+    adminPanel.style.display = "block";
+  }else{
+    adminLogged = false;
+    adminPanel.style.display = "none";
+  }
+  loadProducts();
+});
+
+/* 🔹 ADD PRODUCT */
+function addProduct(){
+  const file = image.files[0];
+  const ref = storage.ref("products/" + Date.now());
+
+  ref.put(file).then(()=>{
+    ref.getDownloadURL().then(url=>{
+      db.collection("products").add({
+        name: pname.value,
+        price: price.value,
+        imageUrl: url
+      });
+      alert("Product Added");
+    });
+  });
+}
+
+/* 🔹 DELETE PRODUCT */
+function deleteProduct(id){
+  if(confirm("Delete product?")){
+    db.collection("products").doc(id).delete();
+  }
+}
+
+/* INITIAL LOAD */
+loadProducts();
+</script>
+
+</body>
+</html>
