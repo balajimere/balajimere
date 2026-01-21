@@ -50,9 +50,9 @@ button.gray{background:#777}
     <button onclick="addCategory()">Add Category</button>
   </div>
 
-  <!-- ADD PRODUCT -->
+  <!-- ADD / EDIT PRODUCT -->
   <div class="card">
-    <h3>Add Product</h3>
+    <h3>Add / Edit Product</h3>
 
     <input type="hidden" id="pid">
 
@@ -61,6 +61,7 @@ button.gray{background:#777}
     <input id="pprice" placeholder="Price">
     <input id="pmrp" placeholder="MRP">
     <textarea id="pdesc" placeholder="Product Description"></textarea>
+    <input type="file" id="images" multiple>
 
     <button onclick="addProduct()">Save Product</button>
   </div>
@@ -71,7 +72,7 @@ button.gray{background:#777}
     <div id="productList" class="scroll"></div>
   </div>
 
-  <!-- NAV BUTTONS -->
+  <!-- REDIRECT BUTTONS -->
   <div class="card">
     <button onclick="location.href='user.html'">View Users</button>
     <button onclick="location.href='admin-order.html'">View Orders</button>
@@ -91,6 +92,7 @@ firebase.initializeApp({
 
 const auth = firebase.auth();
 const db = firebase.firestore();
+const IMGBB_KEY = "5e77bfe737324a6c147697a13fefcb3d";
 
 /* LOGIN */
 function login(){
@@ -102,7 +104,8 @@ auth.onAuthStateChanged(u=>{
  if(u && u.email==="balajimere.admin@gmail.com"){
   loginBox.style.display="none";
   dashboard.style.display="block";
-  loadProducts(); loadCategories();
+  loadProducts();
+  loadCategories();
  }else{
   dashboard.style.display="none";
   loginBox.style.display="block";
@@ -125,23 +128,41 @@ function loadCategories(){
  });
 }
 
-/* PRODUCT */
+/* ADD / UPDATE PRODUCT */
 async function addProduct(){
+ let urls=[];
+ if(images.files.length){
+  for(let f of images.files){
+   let fd=new FormData();
+   fd.append("image",f);
+   let r=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`,{
+     method:"POST",body:fd
+   });
+   let j=await r.json();
+   if(j.success) urls.push(j.data.url);
+  }
+ }
+
  let data={
   category:pcategory.value,
   name:pname.value,
   price:pprice.value,
   mrp:pmrp.value,
   description:pdesc.value,
+  images:urls,
+  image:urls[0]||"",
   hidden:false,
   pinned:false,
   time:new Date()
  };
+
  if(pid.value){
   await db.collection("products").doc(pid.value).update(data);
  }else{
   await db.collection("products").add(data);
  }
+
+ pid.value=""; pname.value=""; pprice.value=""; pmrp.value=""; pdesc.value=""; images.value="";
 }
 
 /* LOAD PRODUCTS */
@@ -151,16 +172,16 @@ function loadProducts(){
   s.forEach(d=>{
    let p=d.data();
    productList.innerHTML+=`
-    <div class="product">
-     <b>${p.name}</b><br>
-     <span class="small">${p.category} | ₹${p.price}</span>
-     <div class="actions">
-      <button onclick="editProduct('${d.id}',${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button>
-      <button class="red" onclick="delProduct('${d.id}')">Delete</button>
-      <button class="gray" onclick="toggleHide('${d.id}',${p.hidden})">${p.hidden?"Show":"Hide"}</button>
-      <button onclick="togglePin('${d.id}',${p.pinned})">${p.pinned?"Unpin":"Pin"}</button>
-     </div>
-    </div>`;
+   <div class="product">
+    <b>${p.name}</b><br>
+    <span class="small">${p.category} | ₹${p.price}</span>
+    <div class="actions">
+     <button onclick="editProduct('${d.id}',${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button>
+     <button class="red" onclick="delProduct('${d.id}')">Delete</button>
+     <button class="gray" onclick="toggleHide('${d.id}',${p.hidden})">${p.hidden?'Show':'Hide'}</button>
+     <button onclick="togglePin('${d.id}',${p.pinned})">${p.pinned?'Unpin':'Pin'}</button>
+    </div>
+   </div>`;
   });
  });
 }
@@ -174,10 +195,12 @@ function editProduct(id,p){
  pcategory.value=p.category||"";
  window.scrollTo(0,0);
 }
+
 function delProduct(id){
  if(confirm("Delete product?"))
   db.collection("products").doc(id).delete();
 }
+
 function toggleHide(id,v){
  db.collection("products").doc(id).update({hidden:!v});
 }
