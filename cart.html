@@ -1,59 +1,172 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cart</title>
+<title>Your Cart</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-body{margin:0;font-family:Arial;background:#f4f6f8}
-header{background:#03A64A;color:#fff;padding:14px;text-align:center}
-.card{background:#fff;margin:10px;padding:10px;border-radius:10px}
-button{width:100%;padding:10px;background:#03A64A;color:#fff;border:none;border-radius:8px}
+:root{--green:#03A64A}
+body{margin:0;font-family:Arial;background:#f7f7f7}
+
+header{
+ background:var(--green);
+ color:#fff;
+ text-align:center;
+ padding:14px;
+ font-size:20px;
+ font-weight:bold
+}
+
+.cart-box{
+ padding:12px;
+ margin-bottom:90px
+}
+
+.item{
+ background:#fff;
+ border-radius:10px;
+ padding:10px;
+ margin-bottom:10px;
+ display:flex;
+ gap:10px;
+ box-shadow:0 2px 5px rgba(0,0,0,.1)
+}
+
+.item img{
+ width:90px;
+ height:90px;
+ object-fit:cover;
+ border-radius:8px
+}
+
+.info{flex:1}
+.name{font-weight:bold}
+.price{color:var(--green)}
+
+.qty{
+ display:flex;
+ align-items:center;
+ gap:8px;
+ margin-top:6px
+}
+.qty button{
+ width:28px;height:28px;
+ border:none;border-radius:4px;
+ background:#ddd;
+ font-size:18px;
+ cursor:pointer
+}
+
+.remove{
+ color:red;
+ font-size:14px;
+ margin-top:6px;
+ cursor:pointer
+}
+
+.total-box{
+ position:fixed;
+ bottom:0;left:0;
+ width:100%;
+ background:#fff;
+ border-top:1px solid #ddd;
+ padding:12px
+}
+
+.total{
+ font-size:18px;
+ font-weight:bold
+}
+
+.checkout{
+ margin-top:8px;
+ width:100%;
+ padding:10px;
+ background:var(--green);
+ color:#fff;
+ border:none;
+ border-radius:6px;
+ font-size:16px;
+ cursor:pointer
+}
 </style>
 </head>
 
 <body>
 
 <header>My Cart</header>
-<div id="cart"></div>
-<button onclick="placeOrder()">Place Order</button>
+
+<div class="cart-box" id="cartBox"></div>
+
+<div class="total-box">
+ <div class="total">Total: ₹<span id="total">0</span></div>
+ <button class="checkout" onclick="checkout()">Place Order</button>
+</div>
 
 <script>
-firebase.initializeApp({
- apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
- authDomain:"balajimere-c8eb9.firebaseapp.com",
- projectId:"balajimere-c8eb9"
-});
-const db=firebase.firestore();
+let cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-let cartData=JSON.parse(localStorage.getItem("cart")||"[]");
-let user=JSON.parse(localStorage.getItem("user"));
+function renderCart(){
+ let box=document.getElementById("cartBox");
+ let total=0;
+ box.innerHTML="";
 
-cartData.forEach(p=>{
- cart.innerHTML+=`
- <div class="card">
-  <b>${p.name}</b><br>₹${p.price}
- </div>`;
-});
-
-async function placeOrder(){
- for(let p of cartData){
-  await db.collection("orders").add({
-   product:p.name,
-   price:p.price,
-   user:user.name,
-   mobile:user.mobile,
-   time:new Date()
-  });
+ if(cart.length==0){
+  box.innerHTML="<p>Your cart is empty</p>";
+  document.getElementById("total").innerText="0";
+  return;
  }
- localStorage.removeItem("cart");
- alert("Order placed");
+
+ cart.forEach((p,i)=>{
+  total+=p.price*p.qty;
+
+  box.innerHTML+=`
+  <div class="item">
+   <img src="${p.image || p.images?.[0] || ''}">
+   <div class="info">
+    <div class="name">${p.name}</div>
+    <div class="price">₹${p.price}</div>
+
+    <div class="qty">
+     <button onclick="changeQty(${i},-1)">-</button>
+     <b>${p.qty}</b>
+     <button onclick="changeQty(${i},1)">+</button>
+    </div>
+
+    <div class="remove" onclick="removeItem(${i})">
+     <i class="fa fa-trash"></i> Remove
+    </div>
+   </div>
+  </div>`;
+ });
+
+ document.getElementById("total").innerText=total;
+ localStorage.setItem("cart",JSON.stringify(cart));
+}
+
+function changeQty(i,val){
+ cart[i].qty=parseInt(cart[i].qty)+val;
+ if(cart[i].qty<=0) cart[i].qty=1;
+ renderCart();
+}
+
+function removeItem(i){
+ if(confirm("Remove item?")){
+  cart.splice(i,1);
+  renderCart();
+ }
+}
+
+function checkout(){
+ if(cart.length==0) return alert("Cart empty");
  location.href="order.html";
 }
+
+renderCart();
 </script>
 
 </body>
-</html>
+  </html>
