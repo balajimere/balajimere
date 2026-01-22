@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Place Order</title>
+<title>Order</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- Firebase -->
@@ -22,7 +22,7 @@ header{
  font-weight:bold
 }
 
-.box{padding:12px;margin-bottom:130px}
+.box{padding:12px;margin-bottom:160px}
 
 .section{
  background:#fff;
@@ -32,53 +32,27 @@ header{
  box-shadow:0 2px 5px rgba(0,0,0,.1)
 }
 
-.section h3{margin:0 0 8px;font-size:16px}
+.item{display:flex;justify-content:space-between;font-size:14px}
 
-.item{
- display:flex;
- justify-content:space-between;
- margin-bottom:6px;
- font-size:14px
-}
+.total{font-size:18px;font-weight:bold;text-align:right}
 
-.total{
- font-size:18px;
- font-weight:bold;
- text-align:right
-}
-
-input,textarea{
- width:100%;
- padding:8px;
- margin-top:6px;
- border-radius:6px;
- border:1px solid #ccc
-}
+textarea{width:100%;padding:8px;border-radius:6px}
 
 .place{
- position:fixed;
- bottom:0;left:0;
- width:100%;
- background:#fff;
- border-top:1px solid #ddd;
- padding:12px
+ position:fixed;bottom:0;left:0;width:100%;
+ background:#fff;border-top:1px solid #ddd;padding:12px
 }
 
 .place button{
- width:100%;
- padding:10px;
- background:var(--green);
- color:#fff;
- border:none;
- border-radius:6px;
- font-size:16px;
- cursor:pointer;
- margin-bottom:6px
+ width:100%;padding:12px;font-size:16px;
+ background:#25D366;color:#fff;border:none;
+ border-radius:6px;cursor:pointer
 }
 
-.secondary{
- background:#444 !important;
-}
+.history{font-size:14px}
+.badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px}
+.pending{background:orange}
+.done{background:green}
 </style>
 </head>
 
@@ -93,134 +67,117 @@ input,textarea{
  <div class="section">
   <h3>Products</h3>
   <div id="items"></div>
-  <div class="total">Total: ₹<span id="total">0</span></div>
+  <div class="total">Total ₹<span id="total">0</span></div>
  </div>
 
  <div class="section">
-  <h3>Note (optional)</h3>
-  <textarea id="note" placeholder="Any instruction..."></textarea>
+  <h3>Note</h3>
+  <textarea id="note"></textarea>
+ </div>
+
+ <div class="section">
+  <h3>Order History</h3>
+  <div id="history" class="history"></div>
  </div>
 
 </div>
 
 <div class="place">
- <button onclick="placeOrder()">Place Order</button>
- <button class="secondary" onclick="repeatOrder()">Repeat Order</button>
+ <button onclick="placeOrder()">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="22" style="vertical-align:middle">
+  Order to WhatsApp
+ </button>
 </div>
 
 <script>
-/* LOGIN CHECK */
-let user = JSON.parse(localStorage.getItem("user"));
-if(!user){
- location.href="login.html";
-}
+/* USER */
+let user=JSON.parse(localStorage.getItem("user"));
+if(!user)location.href="login.html";
 
 /* FIREBASE */
 firebase.initializeApp({
-  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
-  authDomain: "balajimere-c8eb9.firebaseapp.com",
-  projectId: "balajimere-c8eb9"
+ apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain:"balajimere-c8eb9.firebaseapp.com",
+ projectId:"balajimere-c8eb9"
 });
-const db = firebase.firestore();
+const db=firebase.firestore();
 
-/* ADMIN WHATSAPP */
-const ADMIN_WHATSAPP = "918959216904"; // Admin
-const USER_WHATSAPP = "91"+user.mobile;
+const ADMIN_WHATSAPP="918959216904";
+const USER_WHATSAPP="91"+user.mobile;
 
-/* LOAD USER */
-document.getElementById("userBox").innerHTML=`
- <h3>Customer Details</h3>
- <b>${user.name}</b><br>
- ${user.shop}<br>
- ${user.mobile}<br>
- ${user.address}
+/* USER BOX */
+userBox.innerHTML=`
+<b>${user.name}</b><br>${user.shop}<br>${user.mobile}<br>${user.address}
 `;
 
-/* LOAD CART */
-let cart = JSON.parse(localStorage.getItem("cart") || "[]");
+/* CART */
+let cart=JSON.parse(localStorage.getItem("cart")||"[]");
 let total=0;
-let itemsBox=document.getElementById("items");
-
-if(cart.length==0){
- alert("Cart is empty");
- location.href="cart.html";
-}
-
 cart.forEach(p=>{
  total+=p.price*p.qty;
- itemsBox.innerHTML+=`
-  <div class="item">
-   <span>${p.name} × ${p.qty}</span>
-   <span>₹${p.price*p.qty}</span>
-  </div>
- `;
+ items.innerHTML+=`<div class="item"><span>${p.name} × ${p.qty}</span><span>₹${p.price*p.qty}</span></div>`;
 });
 document.getElementById("total").innerText=total;
 
-/* ADMIN WHATSAPP ALERT */
-function sendAdminAlert(order){
- let msg = `🛒 *NEW ORDER RECEIVED*\n\n`+
- `👤 ${order.user.name}\n📱 ${order.user.mobile}\n🏪 ${order.user.shop}\n\n`;
-
- order.products.forEach(p=>{
-  msg+=`• ${p.name} × ${p.qty}\n`;
- });
-
- msg+=`\n💰 Total: ₹${order.total}\n\n👉 Reply: https://wa.me/${USER_WHATSAPP}`;
-
- window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg),"_blank");
-}
-
-/* USER CONFIRMATION */
-function sendUserConfirmation(orderId){
- let msg = `✅ *Order Confirmed*\n\nOrder ID: ${orderId}\nTotal: ₹${total}\n\nThank you for your order 🙏`;
- window.open(`https://wa.me/${USER_WHATSAPP}?text=`+encodeURIComponent(msg),"_blank");
-}
-
-/* PLACE ORDER */
+/* ORDER */
 async function placeOrder(){
- try{
-  let order={
-   user:user,
-   products:cart,
-   total:total,
-   note:document.getElementById("note").value,
-   status:"Pending",
-   time:new Date()
-  };
+ let order={
+  user,products:cart,total,
+  note:note.value,status:"Pending",
+  time:new Date()
+ };
 
-  let ref = await db.collection("orders").add(order);
+ let ref=await db.collection("orders").add(order);
 
-  sendAdminAlert(order);
-  sendUserConfirmation(ref.id);
+ sendAdmin(order,ref.id);
+ sendUser(ref.id);
 
-  localStorage.removeItem("cart");
-  alert("Order placed successfully");
-  location.href="home.html";
-
- }catch(e){
-  alert("Error: "+e.message);
- }
+ localStorage.removeItem("cart");
+ alert("Order sent to WhatsApp");
+ location.href="home.html";
 }
 
-/* REPEAT ORDER */
-function repeatOrder(){
- localStorage.setItem("cart",JSON.stringify(cart));
- alert("Previous order added to cart");
- location.href="cart.html";
+/* ADMIN WHATSAPP + PDF */
+function sendAdmin(order,id){
+ let msg=`🧾 ORDER #${id}\n${order.user.name}\n${order.user.mobile}\n\nTotal ₹${order.total}`;
+ window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg));
+ generatePDF(order,id);
 }
 
-/* ORDER STATUS CHANGE LISTENER */
-db.collection("orders").onSnapshot(snapshot=>{
- snapshot.docChanges().forEach(change=>{
-  if(change.type==="modified"){
-   let o=change.doc.data();
-   let msg=`📦 Order Status Updated\n\nOrder: ${change.doc.id}\nStatus: ${o.status}`;
-   window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg));
-  }
+/* USER CONFIRM */
+function sendUser(id){
+ let msg=`✅ Order Confirmed\nOrder ID: ${id}\nTotal ₹${total}`;
+ window.open(`https://wa.me/${USER_WHATSAPP}?text=`+encodeURIComponent(msg));
+}
+
+/* PDF */
+function generatePDF(order,id){
+ let w=window.open("");
+ w.document.write(`<h2>Order Invoice</h2>
+ <b>ID:</b>${id}<br>
+ <b>Name:</b>${order.user.name}<br>
+ <b>Total:</b>₹${order.total}<hr>`);
+ order.products.forEach(p=>{
+  w.document.write(`${p.name} × ${p.qty}<br>`);
+ });
+ w.print();
+}
+
+/* ORDER HISTORY */
+db.collection("orders")
+.where("user.mobile","==",user.mobile)
+.onSnapshot(s=>{
+ history.innerHTML="";
+ s.forEach(d=>{
+  let o=d.data();
+  history.innerHTML+=`
+   <div>
+    #${d.id} - ₹${o.total}
+    <span class="badge ${o.status=="Pending"?"pending":"done"}">${o.status}</span>
+   </div>`;
  });
 });
 </script>
 
 </body>
- </html>
+</html>
