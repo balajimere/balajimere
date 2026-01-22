@@ -18,6 +18,16 @@
 body{margin:0;font-family:Arial;background:#f7f7f7}
 header{background:var(--green);color:#fff;text-align:center;padding:14px;font-size:20px;font-weight:bold}
 
+.top-tools{
+ display:flex;gap:8px;
+ padding:10px;background:#fff;
+ position:sticky;top:0;z-index:5
+}
+.top-tools input,.top-tools select{
+ width:100%;padding:8px;
+ border:1px solid #ccc;border-radius:6px
+}
+
 .category{padding:10px;font-size:18px;font-weight:bold;color:#333}
 
 .products{
@@ -56,10 +66,14 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
 .price{color:var(--green);font-weight:bold}
 .mrp{text-decoration:line-through;color:#999;font-size:13px}
 
+.actions{
+ display:flex;gap:6px;margin-top:8px
+}
 .actions button{
- width:100%;margin-top:6px;
+ flex:1;
  padding:8px;border:none;
- border-radius:6px;color:#fff;
+ border-radius:6px;
+ color:#fff;font-size:13px;
  cursor:pointer
 }
 .order{background:var(--green)}
@@ -81,6 +95,14 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
 
 <header>Shree Balaji Oil Agency</header>
 
+<!-- SEARCH + CATEGORY FILTER -->
+<div class="top-tools">
+ <input type="text" id="searchBox" placeholder="Search product..." oninput="render()">
+ <select id="catFilter" onchange="render()">
+  <option value="">All Categories</option>
+ </select>
+</div>
+
 <div id="productList"></div>
 
 <div class="bottom-nav">
@@ -97,41 +119,63 @@ firebase.initializeApp({
 });
 
 const db=firebase.firestore();
+let ALL=[];
 
-/* CHECK LOGIN */
+/* LOGIN CHECK */
 function isLogin(){
  return localStorage.getItem("user");
 }
 
-/* LOAD PRODUCTS (category + pinned) */
+/* LOAD PRODUCTS */
 db.collection("products")
 .where("hidden","!=",true)
 .onSnapshot(snap=>{
- let data={};
+ ALL=[];
+ let cats=new Set();
 
  snap.forEach(d=>{
   let p=d.data();
-  let c=p.category||"Other";
-  if(!data[c]) data[c]=[];
-  data[c].push({...p,id:d.id});
+  p.id=d.id;
+  ALL.push(p);
+  cats.add(p.category||"Other");
  });
 
- productList.innerHTML="";
+ catFilter.innerHTML='<option value="">All Categories</option>';
+ cats.forEach(c=>catFilter.innerHTML+=`<option>${c}</option>`);
 
- Object.keys(data).forEach(cat=>{
-  let items=data[cat]
-    .sort((a,b)=> (b.pinned===true)-(a.pinned===true));
+ render();
+});
 
-  productList.innerHTML+=`<div class="category">${cat}</div>
-  <div class="products">`;
+/* RENDER */
+function render(){
+ let list=document.getElementById("productList");
+ list.innerHTML="";
 
-  items.forEach(p=>{
+ let search=searchBox.value.toLowerCase();
+ let cat=catFilter.value;
+
+ let data=ALL
+  .filter(p=>(!cat||p.category==cat) && p.name.toLowerCase().includes(search))
+  .sort((a,b)=>
+    (a.sortOrder||999)-(b.sortOrder||999) ||
+    (b.pinned===true)-(a.pinned===true)
+  );
+
+ let group={};
+ data.forEach(p=>{
+  let c=p.category||"Other";
+  if(!group[c])group[c]=[];
+  group[c].push(p);
+ });
+
+ Object.keys(group).forEach(cat=>{
+  list.innerHTML+=`<div class="category">${cat}</div><div class="products">`;
+
+  group[cat].forEach(p=>{
    let imgs=p.images?.length?p.images:[p.image];
-   let slides=imgs.map(i=>`
-     <img src="${i}" onclick="view('${p.id}')">
-   `).join("");
+   let slides=imgs.map(i=>`<img src="${i}" onclick="view('${p.id}')">`).join("");
 
-   productList.innerHTML+=`
+   list.innerHTML+=`
    <div class="card">
     <div class="slider" data-index="0">
      <div class="slider-track">${slides}</div>
@@ -147,16 +191,16 @@ db.collection("products")
 
      <div class="actions">
       <button class="order" onclick="order('${p.name}')">Order</button>
-      <button class="cart" onclick='addCart(${JSON.stringify(p)})'>Add to Cart</button>
+      <button class="cart" onclick='addCart(${JSON.stringify(p)})'>Cart</button>
       <button class="share" onclick="share('${p.name}')">Share</button>
      </div>
     </div>
    </div>`;
   });
 
-  productList.innerHTML+=`</div>`;
+  list.innerHTML+=`</div>`;
  });
-});
+}
 
 /* SLIDER */
 function slide(btn,d){
@@ -174,7 +218,7 @@ function view(id){
  location.href="view-product.html?id="+id;
 }
 
-/* ADD CART */
+/* CART */
 function addCart(p){
  if(!isLogin()) return location.href="login.html";
  let q=prompt("Quantity?");
@@ -202,4 +246,4 @@ function share(name){
 </script>
 
 </body>
-</html>
+ </html>
