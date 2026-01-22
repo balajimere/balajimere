@@ -5,50 +5,20 @@
 <title>Order</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
 :root{--green:#03A64A}
 body{margin:0;font-family:Arial;background:#f7f7f7}
-
-header{
- background:var(--green);
- color:#fff;
- text-align:center;
- padding:14px;
- font-size:20px;
- font-weight:bold
-}
-
+header{background:var(--green);color:#fff;text-align:center;padding:14px;font-size:20px;font-weight:bold}
 .box{padding:12px;margin-bottom:160px}
-
-.section{
- background:#fff;
- border-radius:10px;
- padding:10px;
- margin-bottom:10px;
- box-shadow:0 2px 5px rgba(0,0,0,.1)
-}
-
+.section{background:#fff;border-radius:10px;padding:10px;margin-bottom:10px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
 .item{display:flex;justify-content:space-between;font-size:14px}
-
 .total{font-size:18px;font-weight:bold;text-align:right}
-
 textarea{width:100%;padding:8px;border-radius:6px}
-
-.place{
- position:fixed;bottom:0;left:0;width:100%;
- background:#fff;border-top:1px solid #ddd;padding:12px
-}
-
-.place button{
- width:100%;padding:12px;font-size:16px;
- background:#25D366;color:#fff;border:none;
- border-radius:6px;cursor:pointer
-}
-
+.place{position:fixed;bottom:0;left:0;width:100%;background:#fff;border-top:1px solid #ddd;padding:12px}
+.place button{width:100%;padding:12px;font-size:16px;background:#25D366;color:#fff;border:none;border-radius:6px;cursor:pointer}
 .history{font-size:14px}
 .badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px}
 .pending{background:orange}
@@ -84,18 +54,15 @@ textarea{width:100%;padding:8px;border-radius:6px}
 
 <div class="place">
  <button onclick="placeOrder()">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg"
-       width="22" style="vertical-align:middle">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="22">
   Order to WhatsApp
  </button>
 </div>
 
 <script>
-/* USER */
 let user = JSON.parse(localStorage.getItem("user"));
 if(!user) location.href="login.html";
 
-/* FIREBASE */
 firebase.initializeApp({
  apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
  authDomain:"balajimere-c8eb9.firebaseapp.com",
@@ -106,7 +73,6 @@ const db = firebase.firestore();
 const ADMIN_WHATSAPP="918959216904";
 const USER_WHATSAPP="91"+user.mobile;
 
-/* USER BOX */
 userBox.innerHTML=`
 <b>${user.name}</b><br>
 ${user.shop}<br>
@@ -114,111 +80,93 @@ ${user.mobile}<br>
 ${user.address}
 `;
 
-/* CART */
 let cart = JSON.parse(localStorage.getItem("cart")||"[]");
 let total=0;
-
 cart.forEach(p=>{
- total += p.price*p.qty;
- items.innerHTML += `
-  <div class="item">
-   <span>${p.name} × ${p.qty}</span>
-   <span>₹${p.price*p.qty}</span>
-  </div>`;
+ total+=p.price*p.qty;
+ items.innerHTML+=`
+ <div class="item">
+  <span>${p.name} × ${p.qty}</span>
+  <span>₹${p.price*p.qty}</span>
+ </div>`;
 });
-document.getElementById("total").innerText = total;
+document.getElementById("total").innerText=total;
 
-/* PDF WINDOW (IMPORTANT FIX) */
-let pdfWindow = null;
+let pdfWindow=null;
 
-/* PLACE ORDER */
 async function placeOrder(){
 
- if(cart.length==0){
-  alert("Cart empty");
-  return;
- }
+ if(cart.length==0) return alert("Cart empty");
 
- /* ✅ PDF window must open on button click */
- pdfWindow = window.open("", "_blank");
+ pdfWindow = window.open("","_blank");
 
  let order={
-  user:user,
-  products:cart,
-  total:total,
-  note:note.value,
-  status:"Pending",
+  user,products:cart,total,
+  note:note.value,status:"Pending",
   time:new Date()
  };
 
  let ref = await db.collection("orders").add(order);
 
+ generatePDF(order,ref.id);
  sendAdmin(order,ref.id);
  sendUser(ref.id);
- generatePDF(order,ref.id);
 
  localStorage.removeItem("cart");
- alert("Order Sent");
+ alert("Order sent to WhatsApp");
  location.href="home.html";
 }
 
-/* ADMIN WHATSAPP */
 function sendAdmin(order,id){
- let msg=`🧾 ORDER #${id}\n\n${order.user.name}\n${order.user.mobile}\n\nTotal ₹${order.total}`;
+ let msg =
+`🧾 *NEW ORDER*
+Order ID: ${id}
+
+👤 ${order.user.name}
+📞 ${order.user.mobile}
+🏪 ${order.user.shop}
+
+💰 Total ₹${order.total}
+
+📄 *PDF invoice auto-generated*
+(Download popup just opened)`;
+
  window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg));
 }
 
-/* USER CONFIRM */
 function sendUser(id){
  let msg=`✅ Order Confirmed\nOrder ID: ${id}\nTotal ₹${total}`;
  window.open(`https://wa.me/${USER_WHATSAPP}?text=`+encodeURIComponent(msg));
 }
 
-/* ✅ PDF GENERATE (FIXED) */
 function generatePDF(order,id){
-
- if(!pdfWindow) return;
-
- let html=`
- <html>
- <head><title>Order Invoice</title></head>
- <body>
+ let html=`<html><body>
  <h2>Order Invoice</h2>
  <b>Order ID:</b> ${id}<br>
  <b>Name:</b> ${order.user.name}<br>
  <b>Mobile:</b> ${order.user.mobile}<br>
  <b>Shop:</b> ${order.user.shop}<br>
- <b>Address:</b> ${order.user.address}<br>
- <hr>
- `;
-
+ <b>Address:</b> ${order.user.address}<hr>`;
  order.products.forEach(p=>{
   html+=`${p.name} × ${p.qty} = ₹${p.price*p.qty}<br>`;
  });
-
  html+=`<hr><b>Total:</b> ₹${order.total}</body></html>`;
-
  pdfWindow.document.write(html);
  pdfWindow.document.close();
- pdfWindow.focus();
  pdfWindow.print();
 }
 
-/* ORDER HISTORY */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
 .orderBy("time","desc")
-.onSnapshot(snap=>{
+.onSnapshot(s=>{
  history.innerHTML="";
- snap.forEach(d=>{
+ s.forEach(d=>{
   let o=d.data();
   history.innerHTML+=`
-   <div>
-    #${d.id} - ₹${o.total}
-    <span class="badge ${o.status=="Pending"?"pending":"done"}">
-     ${o.status}
-    </span>
-   </div>`;
+  <div>#${d.id} - ₹${o.total}
+  <span class="badge ${o.status=="Pending"?"pending":"done"}">${o.status}</span>
+  </div>`;
  });
 });
 </script>
