@@ -1,50 +1,181 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Orders</title>
+<title>Place Order</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-body{margin:0;font-family:Arial;background:#f4f6f8}
-header{background:#03A64A;color:#fff;padding:14px;text-align:center}
-.card{background:#fff;margin:10px;padding:10px;border-radius:10px}
+:root{--green:#03A64A}
+body{margin:0;font-family:Arial;background:#f7f7f7}
+
+header{
+ background:var(--green);
+ color:#fff;
+ text-align:center;
+ padding:14px;
+ font-size:20px;
+ font-weight:bold
+}
+
+.box{
+ padding:12px;
+ margin-bottom:90px
+}
+
+.section{
+ background:#fff;
+ border-radius:10px;
+ padding:10px;
+ margin-bottom:10px;
+ box-shadow:0 2px 5px rgba(0,0,0,.1)
+}
+
+.section h3{
+ margin:0 0 8px;
+ font-size:16px
+}
+
+.item{
+ display:flex;
+ justify-content:space-between;
+ margin-bottom:6px;
+ font-size:14px
+}
+
+.total{
+ font-size:18px;
+ font-weight:bold;
+ text-align:right
+}
+
+input,textarea{
+ width:100%;
+ padding:8px;
+ margin-top:6px;
+ border-radius:6px;
+ border:1px solid #ccc
+}
+
+.place{
+ position:fixed;
+ bottom:0;left:0;
+ width:100%;
+ background:#fff;
+ border-top:1px solid #ddd;
+ padding:12px
+}
+
+.place button{
+ width:100%;
+ padding:10px;
+ background:var(--green);
+ color:#fff;
+ border:none;
+ border-radius:6px;
+ font-size:16px;
+ cursor:pointer
+}
 </style>
 </head>
 
 <body>
 
-<header>My Orders</header>
-<div id="orders"></div>
+<header>Confirm Order</header>
+
+<div class="box">
+
+ <div class="section" id="userBox"></div>
+
+ <div class="section">
+  <h3>Products</h3>
+  <div id="items"></div>
+  <div class="total">Total: ₹<span id="total">0</span></div>
+ </div>
+
+ <div class="section">
+  <h3>Note (optional)</h3>
+  <textarea id="note" placeholder="Any instruction..."></textarea>
+ </div>
+
+</div>
+
+<div class="place">
+ <button onclick="placeOrder()">Place Order</button>
+</div>
 
 <script>
+/* LOGIN CHECK */
+let user = JSON.parse(localStorage.getItem("user"));
+if(!user){
+ location.href="login.html";
+}
+
+/* FIREBASE */
 firebase.initializeApp({
- apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
- authDomain:"balajimere-c8eb9.firebaseapp.com",
- projectId:"balajimere-c8eb9"
+  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+  authDomain: "balajimere-c8eb9.firebaseapp.com",
+  projectId: "balajimere-c8eb9"
 });
-const db=firebase.firestore();
+const db = firebase.firestore();
 
-let user=JSON.parse(localStorage.getItem("user"));
+/* LOAD USER */
+document.getElementById("userBox").innerHTML=`
+ <h3>Customer Details</h3>
+ <b>${user.name}</b><br>
+ ${user.shop}<br>
+ ${user.mobile}<br>
+ ${user.address}
+`;
 
-db.collection("orders")
-.where("mobile","==",user.mobile)
-.orderBy("time","desc")
-.onSnapshot(s=>{
- orders.innerHTML="";
- s.forEach(d=>{
-  let o=d.data();
-  orders.innerHTML+=`
-  <div class="card">
-   <b>${o.product}</b><br>
-   ₹${o.price}<br>
-   ${new Date(o.time.seconds*1000).toLocaleString()}
-  </div>`;
- });
+/* LOAD CART */
+let cart = JSON.parse(localStorage.getItem("cart") || "[]");
+let total=0;
+let itemsBox=document.getElementById("items");
+
+if(cart.length==0){
+ alert("Cart is empty");
+ location.href="cart.html";
+}
+
+cart.forEach(p=>{
+ total+=p.price*p.qty;
+ itemsBox.innerHTML+=`
+  <div class="item">
+   <span>${p.name} × ${p.qty}</span>
+   <span>₹${p.price*p.qty}</span>
+  </div>
+ `;
 });
+document.getElementById("total").innerText=total;
+
+/* PLACE ORDER */
+async function placeOrder(){
+ try{
+  let order={
+   user:user,
+   products:cart,
+   total:total,
+   note:document.getElementById("note").value,
+   status:"Pending",
+   time:new Date()
+  };
+
+  await db.collection("orders").add(order);
+
+  localStorage.removeItem("cart");
+  alert("Order placed successfully");
+  location.href="home.html";
+
+ }catch(e){
+  alert("Error: "+e.message);
+ }
+}
 </script>
 
 </body>
-</html>
+ </html>
