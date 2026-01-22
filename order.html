@@ -22,10 +22,7 @@ header{
  font-weight:bold
 }
 
-.box{
- padding:12px;
- margin-bottom:90px
-}
+.box{padding:12px;margin-bottom:130px}
 
 .section{
  background:#fff;
@@ -35,10 +32,7 @@ header{
  box-shadow:0 2px 5px rgba(0,0,0,.1)
 }
 
-.section h3{
- margin:0 0 8px;
- font-size:16px
-}
+.section h3{margin:0 0 8px;font-size:16px}
 
 .item{
  display:flex;
@@ -78,7 +72,12 @@ input,textarea{
  border:none;
  border-radius:6px;
  font-size:16px;
- cursor:pointer
+ cursor:pointer;
+ margin-bottom:6px
+}
+
+.secondary{
+ background:#444 !important;
 }
 </style>
 </head>
@@ -106,6 +105,7 @@ input,textarea{
 
 <div class="place">
  <button onclick="placeOrder()">Place Order</button>
+ <button class="secondary" onclick="repeatOrder()">Repeat Order</button>
 </div>
 
 <script>
@@ -122,6 +122,10 @@ firebase.initializeApp({
   projectId: "balajimere-c8eb9"
 });
 const db = firebase.firestore();
+
+/* ADMIN WHATSAPP */
+const ADMIN_WHATSAPP = "918959216904"; // Admin
+const USER_WHATSAPP = "91"+user.mobile;
 
 /* LOAD USER */
 document.getElementById("userBox").innerHTML=`
@@ -153,6 +157,26 @@ cart.forEach(p=>{
 });
 document.getElementById("total").innerText=total;
 
+/* ADMIN WHATSAPP ALERT */
+function sendAdminAlert(order){
+ let msg = `🛒 *NEW ORDER RECEIVED*\n\n`+
+ `👤 ${order.user.name}\n📱 ${order.user.mobile}\n🏪 ${order.user.shop}\n\n`;
+
+ order.products.forEach(p=>{
+  msg+=`• ${p.name} × ${p.qty}\n`;
+ });
+
+ msg+=`\n💰 Total: ₹${order.total}\n\n👉 Reply: https://wa.me/${USER_WHATSAPP}`;
+
+ window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg),"_blank");
+}
+
+/* USER CONFIRMATION */
+function sendUserConfirmation(orderId){
+ let msg = `✅ *Order Confirmed*\n\nOrder ID: ${orderId}\nTotal: ₹${total}\n\nThank you for your order 🙏`;
+ window.open(`https://wa.me/${USER_WHATSAPP}?text=`+encodeURIComponent(msg),"_blank");
+}
+
 /* PLACE ORDER */
 async function placeOrder(){
  try{
@@ -165,7 +189,10 @@ async function placeOrder(){
    time:new Date()
   };
 
-  await db.collection("orders").add(order);
+  let ref = await db.collection("orders").add(order);
+
+  sendAdminAlert(order);
+  sendUserConfirmation(ref.id);
 
   localStorage.removeItem("cart");
   alert("Order placed successfully");
@@ -175,6 +202,24 @@ async function placeOrder(){
   alert("Error: "+e.message);
  }
 }
+
+/* REPEAT ORDER */
+function repeatOrder(){
+ localStorage.setItem("cart",JSON.stringify(cart));
+ alert("Previous order added to cart");
+ location.href="cart.html";
+}
+
+/* ORDER STATUS CHANGE LISTENER */
+db.collection("orders").onSnapshot(snapshot=>{
+ snapshot.docChanges().forEach(change=>{
+  if(change.type==="modified"){
+   let o=change.doc.data();
+   let msg=`📦 Order Status Updated\n\nOrder: ${change.doc.id}\nStatus: ${o.status}`;
+   window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg));
+  }
+ });
+});
 </script>
 
 </body>
