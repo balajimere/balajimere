@@ -5,11 +5,8 @@
 <title>Admin Orders</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<!-- PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
@@ -18,14 +15,16 @@ header{background:#03A64A;color:#fff;padding:12px;text-align:center;font-size:20
 .controls{padding:10px;background:#fff}
 select{padding:6px}
 .order{background:#fff;margin:10px;padding:12px;border-radius:10px}
-.btn{padding:6px 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer}
+.btn{padding:6px 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer;margin:2px}
 .approve{background:#03A64A;color:#fff}
 .reject{background:#e74c3c;color:#fff}
 .pdf{background:#555;color:#fff}
+.wa{background:#25D366;color:#fff}
 .done{color:green;font-weight:bold}
 .rejected{color:red;font-weight:bold}
 .small{font-size:13px;color:#555}
 .report{background:#fff;margin:10px;padding:10px;border-radius:10px}
+textarea{width:100%;padding:6px}
 </style>
 </head>
 
@@ -41,6 +40,11 @@ select{padding:6px}
   <option value="Done">Done</option>
   <option value="Rejected">Rejected</option>
  </select>
+ GST:
+ <select id="gstToggle" onchange="renderOrders()">
+  <option value="on">With GST</option>
+  <option value="off">Without GST</option>
+ </select>
 </div>
 
 <div class="report" id="report"></div>
@@ -53,24 +57,8 @@ firebase.initializeApp({
  projectId:"balajimere-c8eb9"
 });
 const db=firebase.firestore();
-const ADMIN_WA="8959216904";
-const GST=0.05;
-
+const GST_RATE=0.05;
 let allOrders=[];
-
-/* 🔔 ADMIN WHATSAPP ALERT ON NEW ORDER */
-db.collection("orders").where("adminSeen","==",false)
-.onSnapshot(snap=>{
- snap.forEach(d=>{
-  let o=d.data();
-  window.open(
-   `https://wa.me/91${ADMIN_WA}?text=${encodeURIComponent(
-    `🛒 NEW ORDER\n${o.user.name}\n₹${o.total}`
-   )}`,"_blank"
-  );
-  db.collection("orders").doc(d.id).update({adminSeen:true});
- });
-});
 
 /* LOAD ORDERS */
 db.collection("orders").orderBy("time","desc")
@@ -80,94 +68,98 @@ db.collection("orders").orderBy("time","desc")
  renderOrders();
 });
 
-/* RENDER */
 function renderOrders(){
- let f=document.getElementById("filter").value;
- let box=document.getElementById("orders");
- let todayTotal=0;
+ let f=filter.value;
+ let gstOn=gstToggle.value=="on";
+ let box=orders;
+ let monthTotal=0;
  box.innerHTML="";
 
  allOrders.forEach(o=>{
   if(f!="All" && o.status!=f) return;
 
-  let gst=Math.round(o.total*GST);
+  let gst=gstOn?Math.round(o.total*GST_RATE):0;
   let grand=o.total+gst;
-  let invoice=o.invoice || "INV-"+o.id.slice(-6).toUpperCase();
+  let inv=o.invoice||"INV-"+o.id.slice(-6).toUpperCase();
+  let d=o.time?.toDate?.()||new Date();
 
-  if(o.status=="Done"){
-   let d=o.time.toDate();
-   let t=new Date();
-   if(d.toDateString()==t.toDateString())
-    todayTotal+=grand;
+  if(d.getMonth()==new Date().getMonth() && o.status=="Done"){
+    monthTotal+=grand;
   }
 
   let items="";
   o.products.forEach(p=>{
-   items+=`${p.name} x ${p.qty} = ₹${p.price*p.qty}\n`;
+   items+=`${p.name} × ${p.qty} = ₹${p.price*p.qty}\n`;
   });
 
   box.innerHTML+=`
   <div class="order">
    <b>${o.user.name}</b> (${o.user.mobile})<br>
-   <span class="small">${o.user.shop}</span><br><br>
+   <span class="small">${o.user.shop}<br>${o.user.address}</span><br><br>
 
    <pre class="small">${items}</pre>
 
-   Invoice: <b>${invoice}</b><br>
+   Invoice: <b>${inv}</b><br>
    Total: ₹${o.total}<br>
    GST: ₹${gst}<br>
    <b>Grand: ₹${grand}</b><br><br>
 
-   ${
-    o.status=="Pending"
-    ? `
-     <button class="btn approve" onclick="approve('${o.id}','${o.user.mobile}','${invoice}',${grand})">Approve</button>
-     <button class="btn reject" onclick="rejectOrder('${o.id}')">Reject</button>
-    `
-    : o.status=="Done"
-      ? `<span class="done">✔ Approved</span>`
-      : `<span class="rejected">✖ Rejected</span>`
-   }
-   <button class="btn pdf" onclick='pdf("${invoice}","${o.user.name}",\`${items}\`,${o.total},${gst},${grand})'>PDF</button>
+   ${o.status=="Pending"?
+    `<button class="btn approve" onclick="approve('${o.id}','${o.user.mobile}','${inv}',${grand})">Approve</button>
+     <button class="btn reject" onclick="rejectOrder('${o.id}')">Reject</button>`
+    : o.status=="Done"?`<span class="done">✔ Approved</span>`:`<span class="rejected">✖ Rejected</span>`}
+
+   <button class="btn pdf" onclick='pdf("${inv}",${JSON.stringify(o)},${gst},${grand})'>PDF</button>
+
+   <button class="btn wa" onclick="wa('${o.user.mobile}','⏳ Payment Pending\\nInvoice: ${inv}\\nAmount: ₹${grand}')">Pending Payment</button>
+
+   <button class="btn wa" onclick="wa('${o.user.mobile}','🔁 Repeat Order\\nInvoice: ${inv}')">Repeat Order</button>
+
+   <textarea id="msg${o.id}" placeholder="Custom message"></textarea>
+   <button class="btn wa" onclick="wa('${o.user.mobile}',document.getElementById('msg${o.id}').value)">Send Msg</button>
   </div>`;
  });
 
- document.getElementById("report").innerHTML=
-  `<b>Today Sales:</b> ₹${todayTotal}`;
+ report.innerHTML=`<b>Monthly Sales:</b> ₹${monthTotal}`;
 }
 
-/* APPROVE */
-async function approve(id,mobile,invoice,amt){
- await db.collection("orders").doc(id).update({
-  status:"Done",
-  invoice:invoice
- });
- window.open(
-  `https://wa.me/91${mobile}?text=${encodeURIComponent(
-   `✅ ORDER APPROVED\nInvoice: ${invoice}\nAmount: ₹${amt}`
-  )}`,"_blank"
- );
+function wa(m,msg){
+ if(!msg) return alert("Message empty");
+ window.open(`https://wa.me/91${m}?text=`+encodeURIComponent(msg));
 }
 
-/* REJECT */
+async function approve(id,mobile,inv,amt){
+ await db.collection("orders").doc(id).update({status:"Done",invoice:inv});
+ wa(mobile,`✅ Order Approved\nInvoice: ${inv}\nAmount: ₹${amt}`);
+}
+
 function rejectOrder(id){
- if(confirm("Reject this order?")){
+ if(confirm("Reject order?")){
   db.collection("orders").doc(id).update({status:"Rejected"});
  }
 }
 
-/* PDF */
-function pdf(inv,name,items,total,gst,grand){
+function pdf(inv,o,gst,grand){
  const {jsPDF}=window.jspdf;
  let p=new jsPDF();
- p.text("INVOICE",80,10);
- p.text(`Invoice: ${inv}`,10,20);
- p.text(`Customer: ${name}`,10,30);
- p.text("Items:",10,40);
- p.text(items,10,50);
- p.text(`Total: ₹${total}`,10,120);
- p.text(`GST: ₹${gst}`,10,130);
- p.text(`Grand Total: ₹${grand}`,10,140);
+ let y=10;
+ p.text("INVOICE",80,y); y+=10;
+ p.text(`Invoice: ${inv}`,10,y); y+=8;
+ p.text(`Name: ${o.user.name}`,10,y); y+=8;
+ p.text(`Mobile: ${o.user.mobile}`,10,y); y+=8;
+ p.text(`Shop: ${o.user.shop}`,10,y); y+=8;
+ p.text(`Address: ${o.user.address}`,10,y); y+=10;
+
+ o.products.forEach(pr=>{
+  p.text(`${pr.name} × ${pr.qty} = ₹${pr.price*pr.qty}`,10,y);
+  y+=8;
+ });
+
+ y+=5;
+ p.text(`Total: ₹${o.total}`,10,y); y+=8;
+ p.text(`GST: ₹${gst}`,10,y); y+=8;
+ p.text(`Grand Total: ₹${grand}`,10,y);
+
  p.save(inv+".pdf");
 }
 </script>
