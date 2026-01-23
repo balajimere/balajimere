@@ -24,7 +24,15 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 .badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px}
 .pending{background:orange}
 .done{background:green}
-.rejected{background:red}
+.dispatch{background:#f39c12}
+.delivered{background:#2980b9}
+
+/* 🔵 STATUS LINE */
+.track{display:flex;align-items:center;margin-top:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:#ccc}
+.line{flex:1;height:2px;background:#ccc}
+.active{background:#03A64A}
+.small{font-size:13px;color:#555}
 </style>
 </head>
 
@@ -60,7 +68,6 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 </div>
 
 <script>
-/* 🔥 Firebase */
 firebase.initializeApp({
  apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
  authDomain:"balajimere-c8eb9.firebaseapp.com",
@@ -74,7 +81,7 @@ let user=JSON.parse(localStorage.getItem("user"));
 if(!user){ alert("Login required"); location.href="login.html"; }
 
 /* Show user */
-document.getElementById("userBox").innerHTML=`
+userBox.innerHTML=`
 <b>${user.name}</b><br>
 ${user.shop}<br>
 📞 ${user.mobile}<br>
@@ -84,12 +91,10 @@ ${user.shop}<br>
 /* 🛒 Cart */
 let cart=JSON.parse(localStorage.getItem("cart")||"[]");
 let total=0;
-const cartBox=document.getElementById("cartItems");
-
-cartBox.innerHTML="";
+cartItems.innerHTML="";
 cart.forEach(p=>{
  total+=p.price*p.qty;
- cartBox.innerHTML+=`
+ cartItems.innerHTML+=`
  <div class="item">
   <span>${p.name} × ${p.qty}</span>
   <span>₹${p.price*p.qty}</span>
@@ -105,7 +110,7 @@ async function placeOrder(){
   user:user,
   products:cart,
   total:total,
-  note:document.getElementById("note").value,
+  note:note.value,
   status:"Pending",
   created:Date.now()
  };
@@ -114,13 +119,9 @@ async function placeOrder(){
  order.id=ref.id;
  localStorage.setItem("lastOrder",JSON.stringify(order));
 
- let msg=`🧾 NEW ORDER
-ID: ${order.id}
-Name: ${user.name}
-Mobile: ${user.mobile}
-Total: ₹${order.total}`;
-
- window.open("https://wa.me/"+ADMIN+"?text="+encodeURIComponent(msg));
+ window.open("https://wa.me/"+ADMIN+"?text="+encodeURIComponent(
+  `🧾 NEW ORDER\nID: ${order.id}\nName: ${user.name}\nTotal: ₹${order.total}`
+ ));
  alert("Order Placed");
 }
 
@@ -128,7 +129,6 @@ Total: ₹${order.total}`;
 function downloadPDF(){
  let o=JSON.parse(localStorage.getItem("lastOrder"));
  if(!o) return alert("No order");
-
  let w=window.open("");
  w.document.write(`
  <h2>Invoice</h2>
@@ -139,20 +139,43 @@ function downloadPDF(){
  w.print();
 }
 
-/* 🔴 LIVE Orders */
+/* 🔴 LIVE ORDERS */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
 .onSnapshot(snap=>{
  let html="";
  snap.forEach(d=>{
   let o=d.data();
+
+  let s=o.status;
+  let p=s=="Pending"||s=="Done"||s=="Dispatch"||s=="Delivered";
+  let d1=s!="Pending";
+  let d2=s=="Dispatch"||s=="Delivered";
+  let d3=s=="Delivered";
+
   html+=`
   <div class="card">
-   ₹${o.total}
-   <span class="badge ${o.status.toLowerCase()}">${o.status}</span>
+   <b>₹${o.total}</b>
+   <span class="badge ${s.toLowerCase()}">${s}</span>
+
+   <div class="track">
+    <div class="dot active"></div>
+    <div class="line ${d1?'active':''}"></div>
+    <div class="dot ${d1?'active':''}"></div>
+    <div class="line ${d2?'active':''}"></div>
+    <div class="dot ${d2?'active':''}"></div>
+    <div class="line ${d3?'active':''}"></div>
+    <div class="dot ${d3?'active':''}"></div>
+   </div>
+
+   <div class="small">
+    Courier: ${o.courierName||"-"}<br>
+    Phone: ${o.courierPhone||"-"}<br>
+    Tracking: ${o.tracking||"-"}
+   </div>
   </div>`;
  });
- document.getElementById("orders").innerHTML=html;
+ orders.innerHTML=html;
 });
 </script>
 
