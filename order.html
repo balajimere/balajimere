@@ -113,13 +113,14 @@ async function placeOrder(){
   total:total,
   note:note.value,
   status:"Pending",
-  created:Date.now()
+  created:Date.now(),
+  time: firebase.firestore.FieldValue.serverTimestamp() // ✅ FIX (ADMIN PANEL)
  };
 
  let ref=await db.collection("orders").add(order);
  order.id=ref.id;
 
- localStorage.removeItem("cart"); // CART CLEAR
+ localStorage.removeItem("cart");
 
  window.open("https://wa.me/"+ADMIN+"?text="+encodeURIComponent(
   `🧾 NEW ORDER\nID: ${order.id}\nName: ${user.name}\nTotal: ₹${order.total}`
@@ -146,16 +147,12 @@ function orderPDF(o){
  w.print();
 }
 
-/* LIVE ORDERS (FIXED: OLD + NEW) */
+/* LIVE ORDERS */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
 .onSnapshot(snap=>{
  let arr=[];
- snap.forEach(d=>{
-  arr.push({id:d.id,...d.data()});
- });
-
- // NEWEST FIRST (even old orders without created)
+ snap.forEach(d=>arr.push({id:d.id,...d.data()}));
  arr.sort((a,b)=>(b.created||0)-(a.created||0));
 
  let html="";
@@ -197,4 +194,4 @@ db.collection("orders")
 </script>
 
 </body>
-</html>
+ </html>
