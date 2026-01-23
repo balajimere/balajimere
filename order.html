@@ -17,25 +17,14 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
 .item{display:flex;justify-content:space-between;font-size:14px}
 .total{font-size:18px;font-weight:bold;text-align:right}
 textarea{width:100%;padding:8px;border-radius:6px}
-
-.place{
- position:fixed;bottom:0;left:0;width:100%;
- background:#fff;border-top:1px solid #ddd;padding:10px
-}
-.place button{
- width:100%;padding:12px;font-size:16px;
- background:#25D366;color:#fff;border:none;
- border-radius:6px;cursor:pointer;margin-bottom:8px
-}
-.pdfbtn{
- background:#333!important
-}
-
+.place{position:fixed;bottom:0;left:0;width:100%;background:#fff;border-top:1px solid #ddd;padding:10px}
+.place button{width:100%;padding:12px;font-size:16px;background:#25D366;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-bottom:8px}
+.pdfbtn{background:#333!important}
 .history{font-size:14px}
 .badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px}
 .pending{background:orange}
 .done{background:green}
-.editbtn{font-size:12px;color:#03A64A;cursor:pointer}
+.editbtn{font-size:12px;color:#03A64A;cursor:pointer;margin-left:6px}
 </style>
 </head>
 
@@ -71,24 +60,37 @@ textarea{width:100%;padding:8px;border-radius:6px}
   Order to WhatsApp
  </button>
 
- <button class="pdfbtn" onclick="generateLastPDF()">
-  Generate PDF
- </button>
+ <button class="pdfbtn" onclick="generateLastPDF()">Generate PDF</button>
 </div>
 
 <script>
+/* USER */
 let user = JSON.parse(localStorage.getItem("user"));
 if(!user) location.href="login.html";
 
+/* FIREBASE (COMPLETE CONFIG) */
 firebase.initializeApp({
  apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
  authDomain:"balajimere-c8eb9.firebaseapp.com",
- projectId:"balajimere-c8eb9"
+ projectId:"balajimere-c8eb9",
+ storageBucket:"balajimere-c8eb9.appspot.com",
+ messagingSenderId:"1034083816993",
+ appId:"1:1034083816993:web:balajiapp"
 });
 const db = firebase.firestore();
 
 const ADMIN_WHATSAPP="918959216904";
 
+/* SAVE USER PROFILE TO FIREBASE ✅ */
+db.collection("users").doc(user.mobile).set({
+ name:user.name,
+ mobile:user.mobile,
+ shop:user.shop,
+ address:user.address,
+ updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+},{merge:true});
+
+/* USER BOX */
 userBox.innerHTML=`
 <b>${user.name}</b><br>
 ${user.shop}<br>
@@ -96,67 +98,74 @@ ${user.mobile}<br>
 ${user.address}
 `;
 
+/* CART */
 let cart = JSON.parse(localStorage.getItem("cart")||"[]");
-let total=0;
+let totalAmount = 0;
+items.innerHTML="";
 cart.forEach(p=>{
- total+=p.price*p.qty;
- items.innerHTML+=`
+ totalAmount += p.price * p.qty;
+ items.innerHTML += `
  <div class="item">
   <span>${p.name} × ${p.qty}</span>
   <span>₹${p.price*p.qty}</span>
  </div>`;
 });
-total.innerText=total;
+document.getElementById("total").innerText = totalAmount;
 
-let lastOrder=null;
+/* LAST ORDER */
+let lastOrder = JSON.parse(localStorage.getItem("lastOrder"));
 
-/* PLACE ORDER (ONLY WHATSAPP + SAVE) */
+/* PLACE ORDER (SAVE TO FIREBASE) */
 async function placeOrder(){
-
  if(cart.length==0) return alert("Cart empty");
 
  let order={
-  user,products:cart,total,
+  user,
+  products:cart,
+  total:totalAmount,
   note:note.value,
   status:"Pending",
-  time:new Date()
+  time: firebase.firestore.FieldValue.serverTimestamp()
  };
 
  let ref = await db.collection("orders").add(order);
+
  lastOrder={...order,id:ref.id};
+ localStorage.setItem("lastOrder",JSON.stringify(lastOrder));
 
- sendAdmin(order,ref.id);
-
- alert("Order sent to Admin WhatsApp");
+ sendAdmin(lastOrder);
+ alert("Order saved & sent to Admin");
 }
 
 /* ADMIN WHATSAPP */
-function sendAdmin(order,id){
- let msg =
-`🧾 NEW ORDER
-ID: ${id}
+function sendAdmin(o){
+ let msg=`🧾 *NEW ORDER*
 
-👤 ${order.user.name}
-📞 ${order.user.mobile}
-🏪 ${order.user.shop}
-📍 ${order.user.address}
+Order ID: ${o.id}
 
-💰 Total ₹${order.total}
+👤 ${o.user.name}
+📞 ${o.user.mobile}
+🏪 ${o.user.shop}
+📍 ${o.user.address}
 
-🕒 Status: Pending`;
+📦 PRODUCTS:
+`;
 
- window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg));
+ o.products.forEach(p=>{
+  msg+=`• ${p.name} × ${p.qty} = ₹${p.price*p.qty}\n`;
+ });
+
+ msg+=`\n💰 TOTAL: ₹${o.total}\n🕒 STATUS: Pending`;
+
+ window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg),"_blank");
 }
 
-/* PDF GENERATE BUTTON */
+/* PDF */
 function generateLastPDF(){
- if(!lastOrder){
-  alert("No order yet");
-  return;
- }
+ if(!lastOrder) return alert("No order yet");
 
- let w = window.open("","_blank");
- let o = lastOrder;
+ let o=lastOrder;
+ let w=window.open("","_blank");
 
  let html=`<html><body>
  <h2>Order Invoice</h2>
@@ -171,27 +180,26 @@ function generateLastPDF(){
  });
 
  html+=`<hr><b>Total:</b> ₹${o.total}</body></html>`;
-
  w.document.write(html);
  w.document.close();
  w.print();
 }
 
-/* ORDER HISTORY + MODIFY */
+/* ORDER HISTORY (LIVE) */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
 .orderBy("time","desc")
-.onSnapshot(s=>{
+.onSnapshot(snap=>{
  history.innerHTML="";
- s.forEach(d=>{
-  let o=d.data();
+ snap.forEach(doc=>{
+  let o=doc.data();
   history.innerHTML+=`
   <div>
-   #${d.id} - ₹${o.total}
+   #${doc.id} - ₹${o.total}
    <span class="badge ${o.status=="Pending"?"pending":"done"}">${o.status}</span>
    ${o.status=="Pending"
-    ? `<span class="editbtn" onclick="editOrder('${d.id}')">Edit</span>`
-    : ""}
+     ? `<span class="editbtn" onclick="editOrder('${doc.id}')">Edit</span>`
+     : ""}
   </div>`;
  });
 });
@@ -203,4 +211,4 @@ function editOrder(id){
 </script>
 
 </body>
-</html>
+ </html>
