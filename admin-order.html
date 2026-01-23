@@ -19,7 +19,8 @@
 body{font-family:Arial;background:#f2f2f2;margin:0}
 header{background:#03A64A;color:#fff;padding:12px;text-align:center;font-size:20px}
 .controls{background:#fff;padding:10px}
-select,button,input{padding:6px;margin:4px}
+select,button,input,textarea{padding:6px;margin:4px;width:auto}
+textarea{width:98%}
 .order{background:#fff;margin:10px;padding:12px;border-radius:10px}
 .btn{padding:6px 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer;margin:2px}
 .approve{background:#03A64A;color:#fff}
@@ -27,6 +28,7 @@ select,button,input{padding:6px;margin:4px}
 .dispatch{background:#f39c12;color:#fff}
 .delivered{background:#2980b9;color:#fff}
 .pdf{background:#555;color:#fff}
+.wa{background:#25D366;color:#fff}
 .small{font-size:13px;color:#555}
 .report{background:#fff;margin:10px;padding:10px;border-radius:10px}
 </style>
@@ -35,20 +37,16 @@ select,button,input{padding:6px;margin:4px}
 <body>
 
 <script>
-/* 🔐 ADMIN EMAIL + PASSWORD LOGIN */
-const ADMIN_EMAIL = "balajimere.admin@gmail.com";
-const ADMIN_PASSWORD = "Balaji@631625";
-
+/* 🔐 ADMIN LOGIN */
+const ADMIN_EMAIL="balajimere.admin@gmail.com";
+const ADMIN_PASSWORD="Balaji@631625";
 if(localStorage.getItem("adminAuth")!=="yes"){
- let email = prompt("Enter Admin Email");
- let pass  = prompt("Enter Admin Password");
-
- if(email!==ADMIN_EMAIL || pass!==ADMIN_PASSWORD){
-  alert("❌ Access Denied");
+ let e=prompt("Admin Email");
+ let p=prompt("Admin Password");
+ if(e!==ADMIN_EMAIL || p!==ADMIN_PASSWORD){
+  alert("Access Denied");
   location.reload();
- }else{
-  localStorage.setItem("adminAuth","yes");
- }
+ }else localStorage.setItem("adminAuth","yes");
 }
 </script>
 
@@ -70,7 +68,11 @@ if(localStorage.getItem("adminAuth")!=="yes"){
  <br><br>
  📅 From <input type="date" id="fromDate">
  To <input type="date" id="toDate">
- <button onclick="dateReport()">📈 Sales Report</button>
+ <button onclick="dateReport()">📈 Sales</button>
+
+ <br><br>
+ 📲 <b>Global WhatsApp Message</b><br>
+ <textarea id="globalMsg" placeholder="Type one message here – this will go to all users"></textarea>
 </div>
 
 <div class="report" id="reportBox"></div>
@@ -85,6 +87,7 @@ firebase.initializeApp({
 const db=firebase.firestore();
 let all=[];
 
+/* LOAD ORDERS */
 db.collection("orders").orderBy("time","desc")
 .onSnapshot(s=>{
  all=[];
@@ -99,9 +102,10 @@ function render(){
   if(f!="All" && o.status!=f) return;
 
   let inv=o.invoice||("INV-"+o.id.slice(-6).toUpperCase());
-  let items="";
+  let itemsTxt="",itemsHtml="";
   o.products.forEach(p=>{
-   items+=`${p.name} × ${p.qty} = ₹${p.price*p.qty}<br>`;
+   itemsTxt+=`${p.name} x ${p.qty} = ₹${p.price*p.qty}\n`;
+   itemsHtml+=`${p.name} × ${p.qty} = ₹${p.price*p.qty}<br>`;
   });
 
   orders.innerHTML+=`
@@ -109,8 +113,8 @@ function render(){
    <b>${o.user.name}</b> (${o.user.mobile})<br>
    <span class="small">${o.user.shop}<br>${o.user.address}</span><br><br>
 
-   ${items}
-   <br><b>Total: ₹${o.total}</b><br>
+   ${itemsHtml}
+   <b>Total: ₹${o.total}</b><br>
    Invoice: <b>${inv}</b><br>
    Status: <b>${o.status}</b><br><br>
 
@@ -122,63 +126,88 @@ function render(){
    <br><br>
 
    ${buttons(o,inv)}
-   <button class="btn pdf" onclick='pdf("${inv}",${JSON.stringify(o)})'>PDF</button>
+
+   <button class="btn pdf" onclick='pdf("${inv}",${JSON.stringify(o)})'>📄 PDF</button>
+
+   <button class="btn wa" onclick="sendWA('${o.user.mobile}','${inv}',\`${itemsTxt}\`,${o.total})">
+    📲 Send WhatsApp
+   </button>
   </div>`;
  });
 }
 
+/* STATUS BUTTONS */
 function buttons(o,inv){
  if(o.status=="Pending")
  return `
  <button class="btn approve" onclick="update('${o.id}','Done','Approved',${o.total},'${inv}','${o.user.mobile}')">Approve</button>
  <button class="btn reject" onclick="update('${o.id}','Rejected')">Reject</button>`;
-
  if(o.status=="Done")
  return `<button class="btn dispatch" onclick="dispatch('${o.id}','${o.user.mobile}','${inv}',${o.total})">Dispatch</button>`;
-
  if(o.status=="Dispatch")
  return `<button class="btn delivered" onclick="update('${o.id}','Delivered','Delivered',${o.total},'${inv}','${o.user.mobile}')">Delivered</button>`;
-
  return "";
 }
 
+/* SAVE COURIER */
 async function saveCourier(id){
  await db.collection("orders").doc(id).update({
-  courierName:document.getElementById("cname-"+id).value,
-  courierPhone:document.getElementById("cphone-"+id).value,
-  tracking:document.getElementById("track-"+id).value
+  courierName:cname-${id}.value,
+  courierPhone:cphone-${id}.value,
+  tracking:track-${id}.value
  });
- alert("Courier details saved");
+ alert("Saved");
 }
 
-async function dispatch(id,mobile,inv,amt){
- let t=document.getElementById("track-"+id).value;
- await db.collection("orders").doc(id).update({status:"Dispatch"});
- window.open(`https://wa.me/91${mobile}?text=`+
-  encodeURIComponent(`📦 Order Dispatched\nInvoice: ${inv}\nTracking: ${t}\nAmount: ₹${amt}`));
+/* WHATSAPP ORDER SEND */
+function sendWA(mobile,inv,items,total){
+ let msg=document.getElementById("globalMsg").value;
+ if(!msg) return alert("Type global message");
+ let text=`${msg}\n\nInvoice: ${inv}\n${items}\nTotal: ₹${total}`;
+ window.open(`https://wa.me/91${mobile}?text=`+encodeURIComponent(text));
 }
 
-async function update(id,status,msg,amt,inv,mobile){
- await db.collection("orders").doc(id).update({status,invoice:inv});
- if(mobile){
-  window.open(`https://wa.me/91${mobile}?text=`+
-   encodeURIComponent(`✅ Order ${msg}\nInvoice: ${inv}\nAmount: ₹${amt}`));
- }
+/* PDF FIXED (NO BUG) */
+function pdf(inv,o){
+ const {jsPDF}=window.jspdf;
+ let p=new jsPDF();
+ let y=20;
+
+ p.setFontSize(16);
+ p.text("SHREE BALAJI OIL AGENCY",40,15);
+ p.setFontSize(10);
+ p.text("Ujjain (M.P.)",40,21);
+
+ y=35;
+ p.text("Invoice: "+inv,10,y); y+=7;
+ p.text("Name: "+o.user.name,10,y); y+=7;
+ p.text("Mobile: "+o.user.mobile,10,y); y+=7;
+ p.text("Address: "+o.user.address,10,y); y+=10;
+
+ o.products.forEach(pr=>{
+  p.text(`${pr.name} x ${pr.qty} = ₹${pr.price*pr.qty}`,10,y);
+  y+=7;
+ });
+
+ y+=5;
+ p.text("Total Amount: ₹"+o.total,10,y);
+
+ p.save(inv+".pdf");
 }
 
+/* REPORT */
 function dateReport(){
  let f=new Date(fromDate.value);
  let t=new Date(toDate.value);
  let sum=0;
  all.forEach(o=>{
   let d=o.time?.toDate?.();
-  if(d>=f && d<=t && (o.status=="Done"||o.status=="Delivered")){
-   sum+=o.total;
-  }
+  if(d>=f && d<=t && (o.status=="Done"||o.status=="Delivered")) sum+=o.total;
  });
  reportBox.innerHTML=`<b>Sales:</b> ₹${sum}`;
 }
 
+/* EXCEL */
 function exportExcel(){
  let ws=XLSX.utils.json_to_sheet(all.map(o=>({
   Invoice:o.invoice,Name:o.user.name,Total:o.total,Status:o.status
