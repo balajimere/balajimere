@@ -5,7 +5,6 @@
 <title>My Orders</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -23,18 +22,15 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 .pdf{background:#333;color:#fff}
 .badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px}
 .pending{background:orange}
-.done{background:green}
 .dispatch{background:#f39c12}
 .delivered{background:#2980b9}
 
-/* STATUS LINE */
 .track{display:flex;align-items:center;margin-top:8px}
 .dot{width:10px;height:10px;border-radius:50%;background:#ccc}
 .line{flex:1;height:2px;background:#ccc}
 .active{background:#03A64A}
 .small{font-size:13px;color:#555}
 
-/* SCROLL */
 #orders{max-height:320px;overflow-y:auto}
 </style>
 </head>
@@ -44,7 +40,6 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 <header>Confirm Order</header>
 
 <div class="box">
-
 <div class="card" id="userBox"></div>
 
 <div class="card">
@@ -62,7 +57,6 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 <h3>📦 My Orders</h3>
 <div id="orders"></div>
 </div>
-
 </div>
 
 <div class="fixed">
@@ -78,7 +72,6 @@ firebase.initializeApp({
 const db=firebase.firestore();
 const ADMIN="918959216904";
 
-/* USER */
 let user=JSON.parse(localStorage.getItem("user"));
 if(!user){ alert("Login required"); location.href="login.html"; }
 
@@ -89,10 +82,8 @@ ${user.shop}<br>
 📍 ${user.address}
 `;
 
-/* CART */
 let cart=JSON.parse(localStorage.getItem("cart")||"[]");
 let total=0;
-cartItems.innerHTML="";
 cart.forEach(p=>{
  total+=p.price*p.qty;
  cartItems.innerHTML+=`
@@ -101,9 +92,8 @@ cart.forEach(p=>{
   <span>₹${p.price*p.qty}</span>
  </div>`;
 });
-document.getElementById("total").innerText=total;
+total.innerText=total;
 
-/* PLACE ORDER */
 async function placeOrder(){
  if(cart.length==0) return alert("Cart empty");
 
@@ -114,40 +104,18 @@ async function placeOrder(){
   note:note.value,
   status:"Pending",
   created:Date.now(),
-  time: firebase.firestore.FieldValue.serverTimestamp() // ✅ FIX (ADMIN PANEL)
+  time: firebase.firestore.FieldValue.serverTimestamp()
  };
 
  let ref=await db.collection("orders").add(order);
- order.id=ref.id;
-
  localStorage.removeItem("cart");
 
  window.open("https://wa.me/"+ADMIN+"?text="+encodeURIComponent(
-  `🧾 NEW ORDER\nID: ${order.id}\nName: ${user.name}\nTotal: ₹${order.total}`
+  `🧾 NEW ORDER\nID: ${ref.id}\nName: ${user.name}\nTotal: ₹${total}`
  ));
-
- alert("Order Placed");
  location.reload();
 }
 
-/* PER ORDER PDF */
-function orderPDF(o){
- let w=window.open("");
- w.document.write(`
- <h2>Invoice</h2>
- <b>${o.user.name}</b><br>
- ${o.user.shop}<br>
- ${o.user.mobile}<br>
- ${o.user.address}<br><br>
-
- Order ID: ${o.id}<br><br>
- ${o.products.map(p=>`${p.name} × ${p.qty} = ₹${p.price*p.qty}`).join("<br>")}
- <hr>Total: ₹${o.total}
- `);
- w.print();
-}
-
-/* LIVE ORDERS */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
 .onSnapshot(snap=>{
@@ -157,35 +125,26 @@ db.collection("orders")
 
  let html="";
  arr.forEach(o=>{
-  let s=o.status||"Pending";
-  let d1=s!="Pending";
-  let d2=s=="Dispatch"||s=="Delivered";
-  let d3=s=="Delivered";
-
   html+=`
   <div class="card">
    <b>₹${o.total}</b>
-   <span class="badge ${s.toLowerCase()}">${s}</span>
+   <span class="badge ${o.status.toLowerCase()}">${o.status}</span>
 
    <div class="track">
     <div class="dot active"></div>
-    <div class="line ${d1?'active':''}"></div>
-    <div class="dot ${d1?'active':''}"></div>
-    <div class="line ${d2?'active':''}"></div>
-    <div class="dot ${d2?'active':''}"></div>
-    <div class="line ${d3?'active':''}"></div>
-    <div class="dot ${d3?'active':''}"></div>
+    <div class="line ${o.status!="Pending"?"active":""}"></div>
+    <div class="dot ${o.status!="Pending"?"active":""}"></div>
+    <div class="line ${o.status=="Delivered"?"active":""}"></div>
+    <div class="dot ${o.status=="Delivered"?"active":""}"></div>
    </div>
 
    <div class="small">
-    Courier: ${o.courierName||"-"}<br>
-    Phone: ${o.courierPhone||"-"}<br>
-    Tracking: ${o.tracking||"-"}
+    📤 Dispatch Date: ${o.dispatchDate||"-"}<br>
+    📦 Delivery Date: ${o.deliveryDate||"-"}<br>
+    🚚 Courier: ${o.courierName||"-"}<br>
+    📞 Phone: ${o.courierPhone||"-"}<br>
+    🔎 Tracking: ${o.tracking||"-"}
    </div>
-
-   <button class="pdf" onclick='orderPDF(${JSON.stringify(o)})'>
-    Download Invoice
-   </button>
   </div>`;
  });
 
@@ -194,4 +153,4 @@ db.collection("orders")
 </script>
 
 </body>
- </html>
+</html>
