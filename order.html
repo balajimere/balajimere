@@ -5,6 +5,7 @@
 <title>Order</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -12,11 +13,11 @@
 :root{--green:#03A64A}
 body{margin:0;font-family:Arial;background:#f7f7f7}
 header{background:var(--green);color:#fff;text-align:center;padding:14px;font-size:20px;font-weight:bold}
-.box{padding:12px;margin-bottom:200px}
+.box{padding:12px;margin-bottom:220px}
 .section{background:#fff;border-radius:10px;padding:10px;margin-bottom:10px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
 .item{display:flex;justify-content:space-between;font-size:14px}
 .total{font-size:18px;font-weight:bold;text-align:right}
-textarea{width:100%;padding:8px;border-radius:6px}
+textarea,input{width:100%;padding:8px;border-radius:6px;margin:4px 0}
 .place{position:fixed;bottom:0;left:0;width:100%;background:#fff;border-top:1px solid #ddd;padding:10px}
 .place button{width:100%;padding:12px;font-size:16px;background:#25D366;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-bottom:8px}
 .pdfbtn{background:#333!important}
@@ -24,6 +25,10 @@ textarea{width:100%;padding:8px;border-radius:6px}
 .badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px}
 .pending{background:orange}
 .done{background:green}
+.dispatch{background:#f39c12}
+.delivered{background:#2980b9}
+.rejected{background:red}
+.small{font-size:12px;color:#555}
 .editbtn{font-size:12px;color:#03A64A;cursor:pointer;margin-left:6px}
 </style>
 </head>
@@ -34,54 +39,58 @@ textarea{width:100%;padding:8px;border-radius:6px}
 
 <div class="box">
 
- <div class="section" id="userBox"></div>
+<!-- USER DETAILS -->
+<div class="section" id="userBox"></div>
 
- <div class="section">
-  <h3>Products</h3>
-  <div id="items"></div>
-  <div class="total">Total ₹<span id="total">0</span></div>
- </div>
+<!-- PRODUCTS -->
+<div class="section">
+<h3>🛒 Products</h3>
+<div id="items"></div>
+<div class="total">Total ₹<span id="total">0</span></div>
+</div>
 
- <div class="section">
-  <h3>Note</h3>
-  <textarea id="note"></textarea>
- </div>
+<!-- NOTE -->
+<div class="section">
+<h3>📝 Note</h3>
+<textarea id="note"></textarea>
+</div>
 
- <div class="section">
-  <h3>Order History</h3>
-  <div id="history" class="history"></div>
- </div>
+<!-- ORDER HISTORY -->
+<div class="section">
+<h3>📦 My Orders</h3>
+<div id="history" class="history"></div>
+</div>
 
 </div>
 
+<!-- ACTION BUTTONS -->
 <div class="place">
- <button onclick="placeOrder()">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="22">
-  Order to WhatsApp
- </button>
+<button onclick="placeOrder()">
+<img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="20">
+ Order to WhatsApp
+</button>
 
- <button class="pdfbtn" onclick="generateLastPDF()">Generate PDF</button>
+<button class="pdfbtn" onclick="generateLastPDF()">Generate PDF</button>
 </div>
 
 <script>
-/* USER */
-let user = JSON.parse(localStorage.getItem("user"));
-if(!user) location.href="login.html";
-
-/* FIREBASE (COMPLETE CONFIG) */
+/* 🔥 FIREBASE CONFIG (ADMIN COMPATIBLE) */
 firebase.initializeApp({
  apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
  authDomain:"balajimere-c8eb9.firebaseapp.com",
- projectId:"balajimere-c8eb9",
- storageBucket:"balajimere-c8eb9.appspot.com",
- messagingSenderId:"1034083816993",
- appId:"1:1034083816993:web:balajiapp"
+ projectId:"balajimere-c8eb9"
 });
-const db = firebase.firestore();
-
+const db=firebase.firestore();
 const ADMIN_WHATSAPP="918959216904";
 
-/* SAVE USER PROFILE TO FIREBASE ✅ */
+/* 👤 USER (LOGIN DATA) */
+let user=JSON.parse(localStorage.getItem("user"));
+if(!user){
+ alert("Login required");
+ location.href="login.html";
+}
+
+/* SAVE / UPDATE USER PROFILE */
 db.collection("users").doc(user.mobile).set({
  name:user.name,
  mobile:user.mobile,
@@ -94,33 +103,33 @@ db.collection("users").doc(user.mobile).set({
 userBox.innerHTML=`
 <b>${user.name}</b><br>
 ${user.shop}<br>
-${user.mobile}<br>
-${user.address}
+📞 ${user.mobile}<br>
+📍 ${user.address}
 `;
 
 /* CART */
-let cart = JSON.parse(localStorage.getItem("cart")||"[]");
-let totalAmount = 0;
+let cart=JSON.parse(localStorage.getItem("cart")||"[]");
+let totalAmount=0;
 items.innerHTML="";
 cart.forEach(p=>{
- totalAmount += p.price * p.qty;
- items.innerHTML += `
+ totalAmount+=p.price*p.qty;
+ items.innerHTML+=`
  <div class="item">
   <span>${p.name} × ${p.qty}</span>
   <span>₹${p.price*p.qty}</span>
  </div>`;
 });
-document.getElementById("total").innerText = totalAmount;
+document.getElementById("total").innerText=totalAmount;
 
-/* LAST ORDER */
-let lastOrder = JSON.parse(localStorage.getItem("lastOrder"));
+/* LAST ORDER CACHE */
+let lastOrder=null;
 
-/* PLACE ORDER (SAVE TO FIREBASE) */
+/* 🧾 PLACE ORDER */
 async function placeOrder(){
  if(cart.length==0) return alert("Cart empty");
 
  let order={
-  user,
+  user:user,
   products:cart,
   total:totalAmount,
   note:note.value,
@@ -128,20 +137,19 @@ async function placeOrder(){
   time: firebase.firestore.FieldValue.serverTimestamp()
  };
 
- let ref = await db.collection("orders").add(order);
-
+ let ref=await db.collection("orders").add(order);
  lastOrder={...order,id:ref.id};
  localStorage.setItem("lastOrder",JSON.stringify(lastOrder));
 
- sendAdmin(lastOrder);
- alert("Order saved & sent to Admin");
+ sendAdminWhatsApp(lastOrder);
+ alert("✅ Order Placed Successfully");
 }
 
-/* ADMIN WHATSAPP */
-function sendAdmin(o){
+/* 📲 ADMIN WHATSAPP */
+function sendAdminWhatsApp(o){
  let msg=`🧾 *NEW ORDER*
 
-Order ID: ${o.id}
+ID: ${o.id}
 
 👤 ${o.user.name}
 📞 ${o.user.mobile}
@@ -160,7 +168,7 @@ Order ID: ${o.id}
  window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=`+encodeURIComponent(msg),"_blank");
 }
 
-/* PDF */
+/* 📄 PDF (LAST ORDER) */
 function generateLastPDF(){
  if(!lastOrder) return alert("No order yet");
 
@@ -168,7 +176,7 @@ function generateLastPDF(){
  let w=window.open("","_blank");
 
  let html=`<html><body>
- <h2>Order Invoice</h2>
+ <h2>Invoice</h2>
  <b>Order ID:</b> ${o.id}<br>
  <b>Name:</b> ${o.user.name}<br>
  <b>Mobile:</b> ${o.user.mobile}<br>
@@ -185,7 +193,7 @@ function generateLastPDF(){
  w.print();
 }
 
-/* ORDER HISTORY (LIVE) */
+/* 🔴 LIVE ORDER HISTORY + STATUS */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
 .orderBy("time","desc")
@@ -195,20 +203,15 @@ db.collection("orders")
   let o=doc.data();
   history.innerHTML+=`
   <div>
-   #${doc.id} - ₹${o.total}
-   <span class="badge ${o.status=="Pending"?"pending":"done"}">${o.status}</span>
-   ${o.status=="Pending"
-     ? `<span class="editbtn" onclick="editOrder('${doc.id}')">Edit</span>`
-     : ""}
+   <b>Invoice:</b> ${o.invoice||"Pending"}<br>
+   ₹${o.total}
+   <span class="badge ${o.status.toLowerCase()}">${o.status}</span><br>
+   ${o.tracking?`Tracking: ${o.tracking}`:""}
+   <hr>
   </div>`;
  });
 });
-
-function editOrder(id){
- localStorage.setItem("editOrderId",id);
- location.href="cart.html";
-}
 </script>
 
 </body>
- </html>
+</html>
