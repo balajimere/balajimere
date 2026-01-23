@@ -15,13 +15,13 @@ header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20
 .card{background:#fff;border-radius:8px;padding:10px;margin-bottom:10px}
 .item{display:flex;justify-content:space-between;font-size:14px}
 .total{text-align:right;font-size:18px;font-weight:bold}
-textarea{width:100%;padding:8px}
 .fixed{position:fixed;bottom:0;left:0;width:100%;background:#fff;border-top:1px solid #ccc;padding:10px}
 button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;margin-bottom:6px}
 .wa{background:#25D366;color:#fff}
 .pdf{background:#333;color:#fff}
 .badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px}
 .pending{background:orange}
+.done{background:green}
 .dispatch{background:#f39c12}
 .delivered{background:#2980b9}
 
@@ -40,6 +40,7 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 <header>Confirm Order</header>
 
 <div class="box">
+
 <div class="card" id="userBox"></div>
 
 <div class="card">
@@ -49,14 +50,10 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 </div>
 
 <div class="card">
-<h3>📝 Note</h3>
-<textarea id="note"></textarea>
-</div>
-
-<div class="card">
 <h3>📦 My Orders</h3>
 <div id="orders"></div>
 </div>
+
 </div>
 
 <div class="fixed">
@@ -72,6 +69,7 @@ firebase.initializeApp({
 const db=firebase.firestore();
 const ADMIN="918959216904";
 
+/* USER */
 let user=JSON.parse(localStorage.getItem("user"));
 if(!user){ alert("Login required"); location.href="login.html"; }
 
@@ -82,8 +80,10 @@ ${user.shop}<br>
 📍 ${user.address}
 `;
 
+/* CART */
 let cart=JSON.parse(localStorage.getItem("cart")||"[]");
 let total=0;
+cartItems.innerHTML="";
 cart.forEach(p=>{
  total+=p.price*p.qty;
  cartItems.innerHTML+=`
@@ -94,6 +94,7 @@ cart.forEach(p=>{
 });
 total.innerText=total;
 
+/* PLACE ORDER */
 async function placeOrder(){
  if(cart.length==0) return alert("Cart empty");
 
@@ -101,7 +102,6 @@ async function placeOrder(){
   user:user,
   products:cart,
   total:total,
-  note:note.value,
   status:"Pending",
   created:Date.now(),
   time: firebase.firestore.FieldValue.serverTimestamp()
@@ -113,9 +113,28 @@ async function placeOrder(){
  window.open("https://wa.me/"+ADMIN+"?text="+encodeURIComponent(
   `🧾 NEW ORDER\nID: ${ref.id}\nName: ${user.name}\nTotal: ₹${total}`
  ));
+
  location.reload();
 }
 
+/* PDF */
+function orderPDF(o){
+ let w=window.open("");
+ w.document.write(`
+ <h2>Invoice</h2>
+ <b>${o.user.name}</b><br>
+ ${o.user.shop}<br>
+ ${o.user.mobile}<br>
+ ${o.user.address}<br><br>
+
+ Order ID: ${o.id}<br><br>
+ ${o.products.map(p=>`${p.name} × ${p.qty} = ₹${p.price*p.qty}`).join("<br>")}
+ <hr>Total: ₹${o.total}
+ `);
+ w.print();
+}
+
+/* LIVE ORDERS */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
 .onSnapshot(snap=>{
@@ -125,17 +144,19 @@ db.collection("orders")
 
  let html="";
  arr.forEach(o=>{
+  let s=o.status||"Pending";
+
   html+=`
   <div class="card">
    <b>₹${o.total}</b>
-   <span class="badge ${o.status.toLowerCase()}">${o.status}</span>
+   <span class="badge ${s.toLowerCase()}">${s}</span>
 
    <div class="track">
     <div class="dot active"></div>
-    <div class="line ${o.status!="Pending"?"active":""}"></div>
-    <div class="dot ${o.status!="Pending"?"active":""}"></div>
-    <div class="line ${o.status=="Delivered"?"active":""}"></div>
-    <div class="dot ${o.status=="Delivered"?"active":""}"></div>
+    <div class="line ${s!="Pending"?'active':''}"></div>
+    <div class="dot ${s!="Pending"?'active':''}"></div>
+    <div class="line ${s=="Delivered"?'active':''}"></div>
+    <div class="dot ${s=="Delivered"?'active':''}"></div>
    </div>
 
    <div class="small">
@@ -145,6 +166,10 @@ db.collection("orders")
     📞 Phone: ${o.courierPhone||"-"}<br>
     🔎 Tracking: ${o.tracking||"-"}
    </div>
+
+   <button class="pdf" onclick='orderPDF(${JSON.stringify(o)})'>
+    Download Invoice
+   </button>
   </div>`;
  });
 
