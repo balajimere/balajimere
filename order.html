@@ -12,7 +12,7 @@
 <style>
 body{margin:0;font-family:Arial;background:#f2f2f2}
 header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20px}
-.box{padding:10px;margin-bottom:190px}
+.box{padding:10px;margin-bottom:120px}
 .card{background:#fff;border-radius:8px;padding:10px;margin-bottom:10px}
 .item{display:flex;justify-content:space-between;font-size:14px}
 .total{text-align:right;font-size:18px;font-weight:bold}
@@ -27,12 +27,15 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 .dispatch{background:#f39c12}
 .delivered{background:#2980b9}
 
-/* 🔵 STATUS LINE */
+/* STATUS */
 .track{display:flex;align-items:center;margin-top:8px}
 .dot{width:10px;height:10px;border-radius:50%;background:#ccc}
 .line{flex:1;height:2px;background:#ccc}
 .active{background:#03A64A}
 .small{font-size:13px;color:#555}
+
+/* SCROLL */
+#orders{max-height:320px;overflow-y:auto}
 </style>
 </head>
 
@@ -64,7 +67,6 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 
 <div class="fixed">
 <button class="wa" onclick="placeOrder()">Order on WhatsApp</button>
-<button class="pdf" onclick="downloadPDF()">Download Invoice</button>
 </div>
 
 <script>
@@ -76,11 +78,10 @@ firebase.initializeApp({
 const db=firebase.firestore();
 const ADMIN="918959216904";
 
-/* 👤 User */
+/* USER */
 let user=JSON.parse(localStorage.getItem("user"));
 if(!user){ alert("Login required"); location.href="login.html"; }
 
-/* Show user */
 userBox.innerHTML=`
 <b>${user.name}</b><br>
 ${user.shop}<br>
@@ -88,7 +89,7 @@ ${user.shop}<br>
 📍 ${user.address}
 `;
 
-/* 🛒 Cart */
+/* CART */
 let cart=JSON.parse(localStorage.getItem("cart")||"[]");
 let total=0;
 cartItems.innerHTML="";
@@ -102,7 +103,7 @@ cart.forEach(p=>{
 });
 document.getElementById("total").innerText=total;
 
-/* 📦 Place Order */
+/* PLACE ORDER */
 async function placeOrder(){
  if(cart.length==0) return alert("Cart empty");
 
@@ -117,21 +118,27 @@ async function placeOrder(){
 
  let ref=await db.collection("orders").add(order);
  order.id=ref.id;
- localStorage.setItem("lastOrder",JSON.stringify(order));
+
+ localStorage.removeItem("cart");   // ✅ CART CLEAR
 
  window.open("https://wa.me/"+ADMIN+"?text="+encodeURIComponent(
   `🧾 NEW ORDER\nID: ${order.id}\nName: ${user.name}\nTotal: ₹${order.total}`
  ));
+
  alert("Order Placed");
+ location.reload();
 }
 
-/* 📄 PDF */
-function downloadPDF(){
- let o=JSON.parse(localStorage.getItem("lastOrder"));
- if(!o) return alert("No order");
+/* PER ORDER PDF */
+function orderPDF(o){
  let w=window.open("");
  w.document.write(`
  <h2>Invoice</h2>
+ <b>${o.user.name}</b><br>
+ ${o.user.shop}<br>
+ ${o.user.mobile}<br>
+ ${o.user.address}<br><br>
+
  Order ID: ${o.id}<br><br>
  ${o.products.map(p=>`${p.name} × ${p.qty} = ₹${p.price*p.qty}`).join("<br>")}
  <hr>Total: ₹${o.total}
@@ -139,16 +146,15 @@ function downloadPDF(){
  w.print();
 }
 
-/* 🔴 LIVE ORDERS */
+/* LIVE ORDERS */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
+.orderBy("created","desc")
 .onSnapshot(snap=>{
  let html="";
  snap.forEach(d=>{
-  let o=d.data();
-
+  let o={id:d.id,...d.data()};
   let s=o.status;
-  let p=s=="Pending"||s=="Done"||s=="Dispatch"||s=="Delivered";
   let d1=s!="Pending";
   let d2=s=="Dispatch"||s=="Delivered";
   let d3=s=="Delivered";
@@ -173,6 +179,10 @@ db.collection("orders")
     Phone: ${o.courierPhone||"-"}<br>
     Tracking: ${o.tracking||"-"}
    </div>
+
+   <button class="pdf" onclick='orderPDF(${JSON.stringify(o)})'>
+    Download Invoice
+   </button>
   </div>`;
  });
  orders.innerHTML=html;
