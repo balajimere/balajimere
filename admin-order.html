@@ -5,49 +5,75 @@
 <title>Admin Orders</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 body{font-family:Arial;background:#f2f2f2;margin:0}
 header{background:#03A64A;color:#fff;padding:12px;text-align:center;font-size:20px}
-.controls{padding:10px;background:#fff}
-select{padding:6px}
+.controls{background:#fff;padding:10px}
+select,button,input{padding:6px;margin:4px}
 .order{background:#fff;margin:10px;padding:12px;border-radius:10px}
 .btn{padding:6px 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer;margin:2px}
 .approve{background:#03A64A;color:#fff}
 .reject{background:#e74c3c;color:#fff}
+.dispatch{background:#f39c12;color:#fff}
+.delivered{background:#2980b9;color:#fff}
 .pdf{background:#555;color:#fff}
-.wa{background:#25D366;color:#fff}
-.done{color:green;font-weight:bold}
-.rejected{color:red;font-weight:bold}
 .small{font-size:13px;color:#555}
 .report{background:#fff;margin:10px;padding:10px;border-radius:10px}
-textarea{width:100%;padding:6px}
 </style>
 </head>
 
 <body>
 
+<script>
+/* 🔐 ADMIN EMAIL + PASSWORD LOGIN */
+const ADMIN_EMAIL = "balajimere.admin@gmail.com";
+const ADMIN_PASSWORD = "Balaji@631625";
+
+if(localStorage.getItem("adminAuth")!=="yes"){
+ let email = prompt("Enter Admin Email");
+ let pass  = prompt("Enter Admin Password");
+
+ if(email!==ADMIN_EMAIL || pass!==ADMIN_PASSWORD){
+  alert("❌ Access Denied");
+  location.reload();
+ }else{
+  localStorage.setItem("adminAuth","yes");
+ }
+}
+</script>
+
 <header>Admin Order Panel</header>
 
 <div class="controls">
  Filter:
- <select id="filter" onchange="renderOrders()">
-  <option value="All">All</option>
-  <option value="Pending">Pending</option>
-  <option value="Done">Done</option>
-  <option value="Rejected">Rejected</option>
+ <select id="filter" onchange="render()">
+  <option>All</option>
+  <option>Pending</option>
+  <option>Done</option>
+  <option>Dispatch</option>
+  <option>Delivered</option>
+  <option>Rejected</option>
  </select>
- GST:
- <select id="gstToggle" onchange="renderOrders()">
-  <option value="on">With GST</option>
-  <option value="off">Without GST</option>
- </select>
+
+ <button onclick="exportExcel()">📊 Export Excel</button>
+
+ <br><br>
+ 📅 From <input type="date" id="fromDate">
+ To <input type="date" id="toDate">
+ <button onclick="dateReport()">📈 Sales Report</button>
 </div>
 
-<div class="report" id="report"></div>
+<div class="report" id="reportBox"></div>
 <div id="orders"></div>
 
 <script>
@@ -57,110 +83,109 @@ firebase.initializeApp({
  projectId:"balajimere-c8eb9"
 });
 const db=firebase.firestore();
-const GST_RATE=0.05;
-let allOrders=[];
+let all=[];
 
-/* LOAD ORDERS */
 db.collection("orders").orderBy("time","desc")
-.onSnapshot(snap=>{
- allOrders=[];
- snap.forEach(d=>allOrders.push({id:d.id,...d.data()}));
- renderOrders();
+.onSnapshot(s=>{
+ all=[];
+ s.forEach(d=>all.push({id:d.id,...d.data()}));
+ render();
 });
 
-function renderOrders(){
+function render(){
  let f=filter.value;
- let gstOn=gstToggle.value=="on";
- let box=orders;
- let monthTotal=0;
- box.innerHTML="";
-
- allOrders.forEach(o=>{
+ orders.innerHTML="";
+ all.forEach(o=>{
   if(f!="All" && o.status!=f) return;
 
-  let gst=gstOn?Math.round(o.total*GST_RATE):0;
-  let grand=o.total+gst;
-  let inv=o.invoice||"INV-"+o.id.slice(-6).toUpperCase();
-  let d=o.time?.toDate?.()||new Date();
-
-  if(d.getMonth()==new Date().getMonth() && o.status=="Done"){
-    monthTotal+=grand;
-  }
-
+  let inv=o.invoice||("INV-"+o.id.slice(-6).toUpperCase());
   let items="";
   o.products.forEach(p=>{
-   items+=`${p.name} × ${p.qty} = ₹${p.price*p.qty}\n`;
+   items+=`${p.name} × ${p.qty} = ₹${p.price*p.qty}<br>`;
   });
 
-  box.innerHTML+=`
+  orders.innerHTML+=`
   <div class="order">
    <b>${o.user.name}</b> (${o.user.mobile})<br>
    <span class="small">${o.user.shop}<br>${o.user.address}</span><br><br>
 
-   <pre class="small">${items}</pre>
-
+   ${items}
+   <br><b>Total: ₹${o.total}</b><br>
    Invoice: <b>${inv}</b><br>
-   Total: ₹${o.total}<br>
-   GST: ₹${gst}<br>
-   <b>Grand: ₹${grand}</b><br><br>
+   Status: <b>${o.status}</b><br><br>
 
-   ${o.status=="Pending"?
-    `<button class="btn approve" onclick="approve('${o.id}','${o.user.mobile}','${inv}',${grand})">Approve</button>
-     <button class="btn reject" onclick="rejectOrder('${o.id}')">Reject</button>`
-    : o.status=="Done"?`<span class="done">✔ Approved</span>`:`<span class="rejected">✖ Rejected</span>`}
+   📦 Courier:
+   <input placeholder="Courier Name" id="cname-${o.id}" value="${o.courierName||""}">
+   <input placeholder="Courier Phone" id="cphone-${o.id}" value="${o.courierPhone||""}">
+   <input placeholder="Tracking No" id="track-${o.id}" value="${o.tracking||""}">
+   <button onclick="saveCourier('${o.id}')">💾 Save</button>
+   <br><br>
 
-   <button class="btn pdf" onclick='pdf("${inv}",${JSON.stringify(o)},${gst},${grand})'>PDF</button>
-
-   <button class="btn wa" onclick="wa('${o.user.mobile}','⏳ Payment Pending\\nInvoice: ${inv}\\nAmount: ₹${grand}')">Pending Payment</button>
-
-   <button class="btn wa" onclick="wa('${o.user.mobile}','🔁 Repeat Order\\nInvoice: ${inv}')">Repeat Order</button>
-
-   <textarea id="msg${o.id}" placeholder="Custom message"></textarea>
-   <button class="btn wa" onclick="wa('${o.user.mobile}',document.getElementById('msg${o.id}').value)">Send Msg</button>
+   ${buttons(o,inv)}
+   <button class="btn pdf" onclick='pdf("${inv}",${JSON.stringify(o)})'>PDF</button>
   </div>`;
  });
-
- report.innerHTML=`<b>Monthly Sales:</b> ₹${monthTotal}`;
 }
 
-function wa(m,msg){
- if(!msg) return alert("Message empty");
- window.open(`https://wa.me/91${m}?text=`+encodeURIComponent(msg));
+function buttons(o,inv){
+ if(o.status=="Pending")
+ return `
+ <button class="btn approve" onclick="update('${o.id}','Done','Approved',${o.total},'${inv}','${o.user.mobile}')">Approve</button>
+ <button class="btn reject" onclick="update('${o.id}','Rejected')">Reject</button>`;
+
+ if(o.status=="Done")
+ return `<button class="btn dispatch" onclick="dispatch('${o.id}','${o.user.mobile}','${inv}',${o.total})">Dispatch</button>`;
+
+ if(o.status=="Dispatch")
+ return `<button class="btn delivered" onclick="update('${o.id}','Delivered','Delivered',${o.total},'${inv}','${o.user.mobile}')">Delivered</button>`;
+
+ return "";
 }
 
-async function approve(id,mobile,inv,amt){
- await db.collection("orders").doc(id).update({status:"Done",invoice:inv});
- wa(mobile,`✅ Order Approved\nInvoice: ${inv}\nAmount: ₹${amt}`);
+async function saveCourier(id){
+ await db.collection("orders").doc(id).update({
+  courierName:document.getElementById("cname-"+id).value,
+  courierPhone:document.getElementById("cphone-"+id).value,
+  tracking:document.getElementById("track-"+id).value
+ });
+ alert("Courier details saved");
 }
 
-function rejectOrder(id){
- if(confirm("Reject order?")){
-  db.collection("orders").doc(id).update({status:"Rejected"});
+async function dispatch(id,mobile,inv,amt){
+ let t=document.getElementById("track-"+id).value;
+ await db.collection("orders").doc(id).update({status:"Dispatch"});
+ window.open(`https://wa.me/91${mobile}?text=`+
+  encodeURIComponent(`📦 Order Dispatched\nInvoice: ${inv}\nTracking: ${t}\nAmount: ₹${amt}`));
+}
+
+async function update(id,status,msg,amt,inv,mobile){
+ await db.collection("orders").doc(id).update({status,invoice:inv});
+ if(mobile){
+  window.open(`https://wa.me/91${mobile}?text=`+
+   encodeURIComponent(`✅ Order ${msg}\nInvoice: ${inv}\nAmount: ₹${amt}`));
  }
 }
 
-function pdf(inv,o,gst,grand){
- const {jsPDF}=window.jspdf;
- let p=new jsPDF();
- let y=10;
- p.text("INVOICE",80,y); y+=10;
- p.text(`Invoice: ${inv}`,10,y); y+=8;
- p.text(`Name: ${o.user.name}`,10,y); y+=8;
- p.text(`Mobile: ${o.user.mobile}`,10,y); y+=8;
- p.text(`Shop: ${o.user.shop}`,10,y); y+=8;
- p.text(`Address: ${o.user.address}`,10,y); y+=10;
-
- o.products.forEach(pr=>{
-  p.text(`${pr.name} × ${pr.qty} = ₹${pr.price*pr.qty}`,10,y);
-  y+=8;
+function dateReport(){
+ let f=new Date(fromDate.value);
+ let t=new Date(toDate.value);
+ let sum=0;
+ all.forEach(o=>{
+  let d=o.time?.toDate?.();
+  if(d>=f && d<=t && (o.status=="Done"||o.status=="Delivered")){
+   sum+=o.total;
+  }
  });
+ reportBox.innerHTML=`<b>Sales:</b> ₹${sum}`;
+}
 
- y+=5;
- p.text(`Total: ₹${o.total}`,10,y); y+=8;
- p.text(`GST: ₹${gst}`,10,y); y+=8;
- p.text(`Grand Total: ₹${grand}`,10,y);
-
- p.save(inv+".pdf");
+function exportExcel(){
+ let ws=XLSX.utils.json_to_sheet(all.map(o=>({
+  Invoice:o.invoice,Name:o.user.name,Total:o.total,Status:o.status
+ })));
+ let wb=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb,ws,"Orders");
+ XLSX.writeFile(wb,"Orders.xlsx");
 }
 </script>
 
