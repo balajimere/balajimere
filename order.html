@@ -5,6 +5,7 @@
 <title>My Orders</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -33,7 +34,7 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 .active{background:#03A64A}
 .small{font-size:13px;color:#555}
 
-/* ✅ SCROLL */
+/* ONLY SCROLL */
 #orders{max-height:300px;overflow-y:auto}
 </style>
 </head>
@@ -78,6 +79,7 @@ firebase.initializeApp({
 const db=firebase.firestore();
 const ADMIN="918959216904";
 
+/* USER */
 let user=JSON.parse(localStorage.getItem("user"));
 if(!user){ alert("Login required"); location.href="login.html"; }
 
@@ -88,6 +90,7 @@ ${user.shop}<br>
 📍 ${user.address}
 `;
 
+/* CART */
 let cart=JSON.parse(localStorage.getItem("cart")||"[]");
 let total=0;
 cartItems.innerHTML="";
@@ -101,7 +104,7 @@ cart.forEach(p=>{
 });
 document.getElementById("total").innerText=total;
 
-/* ✅ PLACE ORDER */
+/* PLACE ORDER */
 async function placeOrder(){
  if(cart.length==0) return alert("Cart empty");
 
@@ -119,7 +122,7 @@ async function placeOrder(){
  order.id=ref.id;
  localStorage.setItem("lastOrder",JSON.stringify(order));
 
- localStorage.removeItem("cart");   // ✅ CART CLEAR
+ localStorage.removeItem("cart");   // CART CLEAR
 
  window.open("https://wa.me/"+ADMIN+"?text="+encodeURIComponent(
   `🧾 NEW ORDER\nID: ${order.id}\nName: ${user.name}\nTotal: ₹${order.total}`
@@ -142,7 +145,7 @@ function downloadPDF(){
  w.print();
 }
 
-/* 🔴 LIVE ORDERS – NEWEST ON TOP */
+/* LIVE ORDERS – NEWEST ON TOP */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
 .orderBy("created","desc")
