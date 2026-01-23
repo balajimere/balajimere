@@ -27,7 +27,7 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 .dispatch{background:#f39c12}
 .delivered{background:#2980b9}
 
-/* STATUS */
+/* STATUS LINE */
 .track{display:flex;align-items:center;margin-top:8px}
 .dot{width:10px;height:10px;border-radius:50%;background:#ccc}
 .line{flex:1;height:2px;background:#ccc}
@@ -119,7 +119,7 @@ async function placeOrder(){
  let ref=await db.collection("orders").add(order);
  order.id=ref.id;
 
- localStorage.removeItem("cart");   // ✅ CART CLEAR
+ localStorage.removeItem("cart"); // CART CLEAR
 
  window.open("https://wa.me/"+ADMIN+"?text="+encodeURIComponent(
   `🧾 NEW ORDER\nID: ${order.id}\nName: ${user.name}\nTotal: ₹${order.total}`
@@ -146,15 +146,21 @@ function orderPDF(o){
  w.print();
 }
 
-/* LIVE ORDERS */
+/* LIVE ORDERS (FIXED: OLD + NEW) */
 db.collection("orders")
 .where("user.mobile","==",user.mobile)
-.orderBy("created","desc")
 .onSnapshot(snap=>{
- let html="";
+ let arr=[];
  snap.forEach(d=>{
-  let o={id:d.id,...d.data()};
-  let s=o.status;
+  arr.push({id:d.id,...d.data()});
+ });
+
+ // NEWEST FIRST (even old orders without created)
+ arr.sort((a,b)=>(b.created||0)-(a.created||0));
+
+ let html="";
+ arr.forEach(o=>{
+  let s=o.status||"Pending";
   let d1=s!="Pending";
   let d2=s=="Dispatch"||s=="Delivered";
   let d3=s=="Delivered";
@@ -185,6 +191,7 @@ db.collection("orders")
    </button>
   </div>`;
  });
+
  orders.innerHTML=html;
 });
 </script>
