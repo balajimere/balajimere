@@ -49,7 +49,6 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 <div id="cartItems"></div>
 <div class="total">₹ <span id="total">0</span></div>
 
-<!-- ✅ CART KE ANDAR BUTTON -->
 <button class="wa" onclick="placeOrder()">Order on WhatsApp</button>
 </div>
 
@@ -58,11 +57,6 @@ button{width:100%;padding:12px;border:none;border-radius:6px;font-size:16px;marg
 <div id="orders"></div>
 </div>
 
-</div>
-
-<!-- ✅ FIXED BUTTON AS IT IS -->
-<div class="fixed">
-<button class="wa" onclick="placeOrder()">Order on WhatsApp</button>
 </div>
 
 <script>
@@ -154,6 +148,7 @@ db.collection("orders")
    <b>₹${o.total}</b>
    <span class="badge ${s.toLowerCase()}">${s}</span>
 
+   ${s!="Rejected" ? `
    <div class="track">
     <div class="dot active"></div>
     <div class="line ${s!="Pending"?'active':''}"></div>
@@ -161,14 +156,18 @@ db.collection("orders")
     <div class="line ${s=="Delivered"?'active':''}"></div>
     <div class="dot ${s=="Delivered"?'active':''}"></div>
    </div>
+   ` : ``}
 
    <div class="small">
-    📤 Dispatch Date: ${o.dispatchDate||"-"}<br>
-    📦 Delivery Date: ${o.deliveryDate||"-"}<br>
-    🚚 Courier: ${o.courierName||"-"}<br>
-    📞 Phone: ${o.courierPhone||"-"}<br>
-    🔎 Tracking: ${o.tracking||"-"}<br>
-    ${s=="Rejected" ? `<span style="color:#e74c3c"><b>❌ Reason:</b> ${o.rejectReason||"-"}</span>` : ``}
+    ${s=="Rejected" ? `
+     <span style="color:#e74c3c"><b>❌ Reason:</b> ${o.rejectReason||"-"}</span>
+    ` : `
+     📤 Dispatch Date: ${o.dispatchDate||"-"}<br>
+     📦 Delivery Date: ${o.deliveryDate||"-"}<br>
+     🚚 Courier: ${o.courierName||"-"}<br>
+     📞 Phone: ${o.courierPhone||"-"}<br>
+     🔎 Tracking: ${o.tracking||"-"}
+    `}
    </div>
 
    <button class="pdf" onclick='orderPDF(${JSON.stringify(o)})'>
@@ -182,4 +181,4 @@ db.collection("orders")
 </script>
 
 </body>
- </html>
+</html>
