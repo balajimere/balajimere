@@ -5,14 +5,9 @@
 <title>Admin Orders</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<!-- PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<!-- Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
@@ -35,19 +30,15 @@ select,button,input{padding:6px;margin:4px}
 <body>
 
 <script>
-/* 🔐 ADMIN LOGIN */
-const ADMIN_EMAIL = "balajimere.admin@gmail.com";
-const ADMIN_PASSWORD = "Balaji@631625";
+const ADMIN_EMAIL="balajimere.admin@gmail.com";
+const ADMIN_PASSWORD="Balaji@631625";
 
 if(localStorage.getItem("adminAuth")!=="yes"){
- let email = prompt("Enter Admin Email");
- let pass  = prompt("Enter Admin Password");
- if(email!==ADMIN_EMAIL || pass!==ADMIN_PASSWORD){
-  alert("❌ Access Denied");
-  location.reload();
- }else{
-  localStorage.setItem("adminAuth","yes");
- }
+ let e=prompt("Enter Admin Email");
+ let p=prompt("Enter Admin Password");
+ if(e!==ADMIN_EMAIL||p!==ADMIN_PASSWORD){
+  alert("❌ Access Denied");location.reload();
+ }else localStorage.setItem("adminAuth","yes");
 }
 </script>
 
@@ -56,23 +47,12 @@ if(localStorage.getItem("adminAuth")!=="yes"){
 <div class="controls">
  Filter:
  <select id="filter" onchange="render()">
-  <option>All</option>
-  <option>Pending</option>
-  <option>Done</option>
-  <option>Dispatch</option>
-  <option>Delivered</option>
-  <option>Rejected</option>
+  <option>All</option><option>Pending</option><option>Done</option>
+  <option>Dispatch</option><option>Delivered</option><option>Rejected</option>
  </select>
-
  <button onclick="exportExcel()">📊 Export Excel</button>
-
- <br><br>
- 📅 From <input type="date" id="fromDate">
- To <input type="date" id="toDate">
- <button onclick="dateReport()">📈 Sales Report</button>
 </div>
 
-<div class="report" id="reportBox"></div>
 <div id="orders"></div>
 
 <script>
@@ -86,22 +66,17 @@ const db=firebase.firestore();
 let all=[];
 
 db.collection("orders").orderBy("time","desc").onSnapshot(s=>{
- all=[];
- s.forEach(d=>all.push({id:d.id,...d.data()}));
- render();
+ all=[]; s.forEach(d=>all.push({id:d.id,...d.data()})); render();
 });
 
 function render(){
- let f=filter.value;
  orders.innerHTML="";
  all.forEach(o=>{
-  if(f!="All" && o.status!=f) return;
+  if(filter.value!="All" && o.status!=filter.value) return;
 
   let inv=o.invoice||("INV-"+o.id.slice(-6).toUpperCase());
   let items="";
-  o.products.forEach(p=>{
-   items+=`${p.name} × ${p.qty} = ₹${p.price*p.qty}<br>`;
-  });
+  o.products.forEach(p=>items+=`${p.name} × ${p.qty} = ₹${p.price*p.qty}<br>`);
 
   orders.innerHTML+=`
   <div class="order">
@@ -112,6 +87,13 @@ function render(){
    <b>Total: ₹${o.total}</b><br>
    Invoice: <b>${inv}</b><br>
    Status: <b>${o.status}</b><br><br>
+
+   📅 Dispatch Date:
+   <input type="date" id="dd-${o.id}" value="${o.dispatchDate||""}">
+   📅 Delivery Date:
+   <input type="date" id="del-${o.id}" value="${o.deliveryDate||""}">
+   <button onclick="saveDates('${o.id}')">💾 Save Dates</button>
+   <br><br>
 
    📦 Courier:
    <input placeholder="Courier Name" id="cname-${o.id}" value="${o.courierName||""}">
@@ -130,99 +112,58 @@ function buttons(o,inv){
  if(o.status=="Pending")
  return `
  <button class="btn approve" onclick="update('${o.id}','Done','Approved',${o.total},'${inv}','${o.user.mobile}')">Approve</button>
- <button class="btn reject" onclick="update('${o.id}','Rejected')">Reject</button>`;
-
+ <button class="btn reject" onclick="rejectOrder('${o.id}','${o.user.mobile}')">Reject</button>`;
  if(o.status=="Done")
  return `<button class="btn dispatch" onclick="dispatch('${o.id}','${o.user.mobile}','${inv}',${o.total})">Dispatch</button>`;
-
  if(o.status=="Dispatch")
  return `<button class="btn delivered" onclick="update('${o.id}','Delivered','Delivered',${o.total},'${inv}','${o.user.mobile}')">Delivered</button>`;
-
  return "";
+}
+
+async function saveDates(id){
+ await db.collection("orders").doc(id).update({
+  dispatchDate:document.getElementById("dd-"+id).value,
+  deliveryDate:document.getElementById("del-"+id).value
+ });
+ alert("Dates saved");
+}
+
+async function rejectOrder(id,mobile){
+ let reason=prompt("Reject reason?");
+ if(!reason) return;
+ await db.collection("orders").doc(id).update({
+  status:"Rejected",
+  rejectReason:reason
+ });
+ window.open(`https://wa.me/91${mobile}?text=`+
+  encodeURIComponent(`❌ Order Rejected\nReason: ${reason}`));
 }
 
 async function saveCourier(id){
  await db.collection("orders").doc(id).update({
-  courierName:document.getElementById("cname-"+id).value,
-  courierPhone:document.getElementById("cphone-"+id).value,
-  tracking:document.getElementById("track-"+id).value
+  courierName:cname["cname-"+id]?.value,
+  courierPhone:cphone["cphone-"+id]?.value,
+  tracking:track["track-"+id]?.value
  });
- alert("Courier details saved");
 }
 
 async function dispatch(id,mobile,inv,amt){
- let t=document.getElementById("track-"+id).value;
  await db.collection("orders").doc(id).update({status:"Dispatch"});
  window.open(`https://wa.me/91${mobile}?text=`+
-  encodeURIComponent(`📦 Order Dispatched\nInvoice: ${inv}\nTracking: ${t}\nAmount: ₹${amt}`));
+ encodeURIComponent(`📦 Order Dispatched\nInvoice: ${inv}\nAmount: ₹${amt}`));
 }
 
 async function update(id,status,msg,amt,inv,mobile){
  await db.collection("orders").doc(id).update({status,invoice:inv});
- if(mobile){
-  window.open(`https://wa.me/91${mobile}?text=`+
-   encodeURIComponent(`✅ Order ${msg}\nInvoice: ${inv}\nAmount: ₹${amt}`));
- }
-}
-
-function dateReport(){
- let f=new Date(fromDate.value);
- let t=new Date(toDate.value);
- let sum=0;
- all.forEach(o=>{
-  let d=o.time?.toDate?.();
-  if(d>=f && d<=t && (o.status=="Done"||o.status=="Delivered")){
-   sum+=o.total;
-  }
- });
- reportBox.innerHTML=`<b>Sales:</b> ₹${sum}`;
+ window.open(`https://wa.me/91${mobile}?text=`+
+ encodeURIComponent(`✅ Order ${msg}\nInvoice: ${inv}\nAmount: ₹${amt}`));
 }
 
 function exportExcel(){
- let ws=XLSX.utils.json_to_sheet(all.map(o=>({
-  Invoice:o.invoice,Name:o.user.name,Total:o.total,Status:o.status
- })));
+ let ws=XLSX.utils.json_to_sheet(all);
  let wb=XLSX.utils.book_new();
  XLSX.utils.book_append_sheet(wb,ws,"Orders");
  XLSX.writeFile(wb,"Orders.xlsx");
-}
-
-/* 🧾 PDF + WHATSAPP */
-function pdf(invoice, order){
- const { jsPDF } = window.jspdf;
- const doc = new jsPDF();
-
- let y=15;
- doc.setFontSize(16);
- doc.text("Shree Balaji Oil Agency",105,y,{align:"center"});
- y+=10;
-
- doc.setFontSize(10);
- doc.text(`Invoice: ${invoice}`,10,y); y+=6;
- doc.text(`Name: ${order.user.name}`,10,y); y+=6;
- doc.text(`Mobile: ${order.user.mobile}`,10,y); y+=6;
- doc.text(`Shop: ${order.user.shop}`,10,y); y+=6;
- doc.text(`Address: ${order.user.address}`,10,y); y+=8;
-
- order.products.forEach(p=>{
-  doc.text(`${p.name} x ${p.qty} = ₹${p.price*p.qty}`,10,y);
-  y+=6;
- });
-
- y+=6;
- doc.text(`Total Amount: ₹${order.total}`,10,y);
-
- doc.save(invoice+".pdf");
-
- let msg=`🧾 Shree Balaji Oil Agency
-Invoice: ${invoice}
-
-${order.products.map(p=>`${p.name} x ${p.qty}`).join("\n")}
-Total ₹${order.total}
-
-Thank you 🙏`;
-
- window.open("https://wa.me/91"+order.user.mobile+"?text="+encodeURIComponent(msg));
 }
 </script>
 
