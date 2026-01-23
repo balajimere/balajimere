@@ -35,6 +35,7 @@ select,button,input{padding:6px;margin:4px}
 <body>
 
 <script>
+/* 🔐 ADMIN LOGIN */
 const ADMIN_EMAIL = "balajimere.admin@gmail.com";
 const ADMIN_PASSWORD = "Balaji@631625";
 
@@ -42,7 +43,7 @@ if(localStorage.getItem("adminAuth")!=="yes"){
  let email = prompt("Enter Admin Email");
  let pass  = prompt("Enter Admin Password");
  if(email!==ADMIN_EMAIL || pass!==ADMIN_PASSWORD){
-  alert("Access Denied");
+  alert("❌ Access Denied");
   location.reload();
  }else{
   localStorage.setItem("adminAuth","yes");
@@ -63,8 +64,9 @@ if(localStorage.getItem("adminAuth")!=="yes"){
   <option>Rejected</option>
  </select>
 
- <button onclick="exportExcel()">📊 Export Excel</button><br><br>
+ <button onclick="exportExcel()">📊 Export Excel</button>
 
+ <br><br>
  📅 From <input type="date" id="fromDate">
  To <input type="date" id="toDate">
  <button onclick="dateReport()">📈 Sales Report</button>
@@ -111,6 +113,13 @@ function render(){
    Invoice: <b>${inv}</b><br>
    Status: <b>${o.status}</b><br><br>
 
+   📦 Courier:
+   <input placeholder="Courier Name" id="cname-${o.id}" value="${o.courierName||""}">
+   <input placeholder="Courier Phone" id="cphone-${o.id}" value="${o.courierPhone||""}">
+   <input placeholder="Tracking No" id="track-${o.id}" value="${o.tracking||""}">
+   <button onclick="saveCourier('${o.id}')">💾 Save</button>
+   <br><br>
+
    ${buttons(o,inv)}
    <button class="btn pdf" onclick='pdf("${inv}",${JSON.stringify(o)})'>PDF</button>
   </div>`;
@@ -122,13 +131,51 @@ function buttons(o,inv){
  return `
  <button class="btn approve" onclick="update('${o.id}','Done','Approved',${o.total},'${inv}','${o.user.mobile}')">Approve</button>
  <button class="btn reject" onclick="update('${o.id}','Rejected')">Reject</button>`;
+
+ if(o.status=="Done")
+ return `<button class="btn dispatch" onclick="dispatch('${o.id}','${o.user.mobile}','${inv}',${o.total})">Dispatch</button>`;
+
+ if(o.status=="Dispatch")
+ return `<button class="btn delivered" onclick="update('${o.id}','Delivered','Delivered',${o.total},'${inv}','${o.user.mobile}')">Delivered</button>`;
+
  return "";
+}
+
+async function saveCourier(id){
+ await db.collection("orders").doc(id).update({
+  courierName:document.getElementById("cname-"+id).value,
+  courierPhone:document.getElementById("cphone-"+id).value,
+  tracking:document.getElementById("track-"+id).value
+ });
+ alert("Courier details saved");
+}
+
+async function dispatch(id,mobile,inv,amt){
+ let t=document.getElementById("track-"+id).value;
+ await db.collection("orders").doc(id).update({status:"Dispatch"});
+ window.open(`https://wa.me/91${mobile}?text=`+
+  encodeURIComponent(`📦 Order Dispatched\nInvoice: ${inv}\nTracking: ${t}\nAmount: ₹${amt}`));
 }
 
 async function update(id,status,msg,amt,inv,mobile){
  await db.collection("orders").doc(id).update({status,invoice:inv});
- window.open(`https://wa.me/91${mobile}?text=`+
- encodeURIComponent(`Order ${msg}\nInvoice: ${inv}\nAmount: ₹${amt}`));
+ if(mobile){
+  window.open(`https://wa.me/91${mobile}?text=`+
+   encodeURIComponent(`✅ Order ${msg}\nInvoice: ${inv}\nAmount: ₹${amt}`));
+ }
+}
+
+function dateReport(){
+ let f=new Date(fromDate.value);
+ let t=new Date(toDate.value);
+ let sum=0;
+ all.forEach(o=>{
+  let d=o.time?.toDate?.();
+  if(d>=f && d<=t && (o.status=="Done"||o.status=="Delivered")){
+   sum+=o.total;
+  }
+ });
+ reportBox.innerHTML=`<b>Sales:</b> ₹${sum}`;
 }
 
 function exportExcel(){
@@ -140,7 +187,7 @@ function exportExcel(){
  XLSX.writeFile(wb,"Orders.xlsx");
 }
 
-/* ===== PDF + WHATSAPP ===== */
+/* 🧾 PDF + WHATSAPP */
 function pdf(invoice, order){
  const { jsPDF } = window.jspdf;
  const doc = new jsPDF();
@@ -163,21 +210,21 @@ function pdf(invoice, order){
  });
 
  y+=6;
- doc.text(`Total: ₹${order.total}`,10,y);
+ doc.text(`Total Amount: ₹${order.total}`,10,y);
 
  doc.save(invoice+".pdf");
 
- let msg=`Shree Balaji Oil Agency
+ let msg=`🧾 Shree Balaji Oil Agency
 Invoice: ${invoice}
-Name: ${order.user.name}
-Mobile: ${order.user.mobile}
 
-${order.products.map(p=>p.name+" x "+p.qty).join("\n")}
-Total ₹${order.total}`;
+${order.products.map(p=>`${p.name} x ${p.qty}`).join("\n")}
+Total ₹${order.total}
+
+Thank you 🙏`;
 
  window.open("https://wa.me/91"+order.user.mobile+"?text="+encodeURIComponent(msg));
 }
 </script>
 
 </body>
-</html>
+ </html>
