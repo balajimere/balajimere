@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Admin Orders</title>
@@ -9,174 +9,166 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
+<!-- PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
-:root{--green:#03A64A;--red:#e53935;--blue:#1976d2}
-body{margin:0;font-family:Arial;background:#f4f4f4}
-
-header{
- background:var(--green);
- color:#fff;
- text-align:center;
- padding:14px;
- font-size:20px;
- font-weight:bold
-}
-
-.orders{
- padding:10px;
- margin-bottom:80px
-}
-
-.card{
- background:#fff;
- border-radius:10px;
- padding:10px;
- margin-bottom:10px;
- box-shadow:0 2px 5px rgba(0,0,0,.1)
-}
-
-.card h3{
- margin:0 0 6px;
- font-size:16px
-}
-
+body{font-family:Arial;background:#f2f2f2;margin:0}
+header{background:#03A64A;color:#fff;padding:12px;text-align:center;font-size:20px}
+.controls{padding:10px;background:#fff}
+select{padding:6px}
+.order{background:#fff;margin:10px;padding:12px;border-radius:10px}
+.btn{padding:6px 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer}
+.approve{background:#03A64A;color:#fff}
+.reject{background:#e74c3c;color:#fff}
+.pdf{background:#555;color:#fff}
+.done{color:green;font-weight:bold}
+.rejected{color:red;font-weight:bold}
 .small{font-size:13px;color:#555}
-
-.products{
- margin:6px 0;
- font-size:14px
-}
-
-.products div{
- display:flex;
- justify-content:space-between
-}
-
-.status{
- margin-top:6px;
- font-weight:bold
-}
-
-select{
- width:100%;
- padding:6px;
- margin-top:6px
-}
-
-.actions{
- display:flex;
- gap:6px;
- margin-top:6px
-}
-
-.actions button{
- flex:1;
- padding:8px;
- border:none;
- border-radius:6px;
- color:#fff;
- cursor:pointer
-}
-
-.update{background:var(--blue)}
-.delete{background:var(--red)}
-
-.empty{
- text-align:center;
- padding:20px;
- color:#777
-}
+.report{background:#fff;margin:10px;padding:10px;border-radius:10px}
 </style>
 </head>
 
 <body>
 
-<header>Admin Orders Panel</header>
+<header>Admin Order Panel</header>
 
-<div class="orders" id="orders"></div>
+<div class="controls">
+ Filter:
+ <select id="filter" onchange="renderOrders()">
+  <option value="All">All</option>
+  <option value="Pending">Pending</option>
+  <option value="Done">Done</option>
+  <option value="Rejected">Rejected</option>
+ </select>
+</div>
+
+<div class="report" id="report"></div>
+<div id="orders"></div>
 
 <script>
-/* ADMIN CHECK */
-if(localStorage.getItem("admin")!=="true"){
- location.href="login.html";
-}
-
-/* FIREBASE */
 firebase.initializeApp({
-  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
-  authDomain: "balajimere-c8eb9.firebaseapp.com",
-  projectId: "balajimere-c8eb9"
+ apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain:"balajimere-c8eb9.firebaseapp.com",
+ projectId:"balajimere-c8eb9"
 });
 const db=firebase.firestore();
+const ADMIN_WA="8959216904";
+const GST=0.05;
 
-/* LOAD ORDERS */
-db.collection("orders")
-.orderBy("time","desc")
+let allOrders=[];
+
+/* 🔔 ADMIN WHATSAPP ALERT ON NEW ORDER */
+db.collection("orders").where("adminSeen","==",false)
 .onSnapshot(snap=>{
- let box=document.getElementById("orders");
- box.innerHTML="";
-
- if(snap.empty){
-  box.innerHTML=`<div class="empty">No orders found</div>`;
- }
-
- snap.forEach(doc=>{
-  let o=doc.data();
-  let pid=doc.id;
-
-  let products="";
-  o.products.forEach(p=>{
-   products+=`
-    <div>
-     <span>${p.name} × ${p.qty}</span>
-     <span>₹${p.price*p.qty}</span>
-    </div>
-   `;
-  });
-
-  box.innerHTML+=`
-  <div class="card">
-   <h3>${o.user.name} (${o.user.mobile})</h3>
-   <div class="small">${o.user.shop}<br>${o.user.address}</div>
-
-   <div class="products">${products}</div>
-
-   <div class="status">Total: ₹${o.total}</div>
-   <div class="status">Status: ${o.status}</div>
-
-   <select id="st_${pid}">
-    <option ${o.status=="Pending"?"selected":""}>Pending</option>
-    <option ${o.status=="Accepted"?"selected":""}>Accepted</option>
-    <option ${o.status=="Dispatched"?"selected":""}>Dispatched</option>
-    <option ${o.status=="Delivered"?"selected":""}>Delivered</option>
-    <option ${o.status=="Cancelled"?"selected":""}>Cancelled</option>
-   </select>
-
-   <div class="actions">
-    <button class="update" onclick="updateStatus('${pid}')">
-     Update
-    </button>
-    <button class="delete" onclick="deleteOrder('${pid}')">
-     Delete
-    </button>
-   </div>
-  </div>
-  `;
+ snap.forEach(d=>{
+  let o=d.data();
+  window.open(
+   `https://wa.me/91${ADMIN_WA}?text=${encodeURIComponent(
+    `🛒 NEW ORDER\n${o.user.name}\n₹${o.total}`
+   )}`,"_blank"
+  );
+  db.collection("orders").doc(d.id).update({adminSeen:true});
  });
 });
 
-/* UPDATE STATUS */
-function updateStatus(id){
- let st=document.getElementById("st_"+id).value;
- db.collection("orders").doc(id).update({status:st});
- alert("Status updated");
+/* LOAD ORDERS */
+db.collection("orders").orderBy("time","desc")
+.onSnapshot(snap=>{
+ allOrders=[];
+ snap.forEach(d=>allOrders.push({id:d.id,...d.data()}));
+ renderOrders();
+});
+
+/* RENDER */
+function renderOrders(){
+ let f=document.getElementById("filter").value;
+ let box=document.getElementById("orders");
+ let todayTotal=0;
+ box.innerHTML="";
+
+ allOrders.forEach(o=>{
+  if(f!="All" && o.status!=f) return;
+
+  let gst=Math.round(o.total*GST);
+  let grand=o.total+gst;
+  let invoice=o.invoice || "INV-"+o.id.slice(-6).toUpperCase();
+
+  if(o.status=="Done"){
+   let d=o.time.toDate();
+   let t=new Date();
+   if(d.toDateString()==t.toDateString())
+    todayTotal+=grand;
+  }
+
+  let items="";
+  o.products.forEach(p=>{
+   items+=`${p.name} x ${p.qty} = ₹${p.price*p.qty}\n`;
+  });
+
+  box.innerHTML+=`
+  <div class="order">
+   <b>${o.user.name}</b> (${o.user.mobile})<br>
+   <span class="small">${o.user.shop}</span><br><br>
+
+   <pre class="small">${items}</pre>
+
+   Invoice: <b>${invoice}</b><br>
+   Total: ₹${o.total}<br>
+   GST: ₹${gst}<br>
+   <b>Grand: ₹${grand}</b><br><br>
+
+   ${
+    o.status=="Pending"
+    ? `
+     <button class="btn approve" onclick="approve('${o.id}','${o.user.mobile}','${invoice}',${grand})">Approve</button>
+     <button class="btn reject" onclick="rejectOrder('${o.id}')">Reject</button>
+    `
+    : o.status=="Done"
+      ? `<span class="done">✔ Approved</span>`
+      : `<span class="rejected">✖ Rejected</span>`
+   }
+   <button class="btn pdf" onclick='pdf("${invoice}","${o.user.name}",\`${items}\`,${o.total},${gst},${grand})'>PDF</button>
+  </div>`;
+ });
+
+ document.getElementById("report").innerHTML=
+  `<b>Today Sales:</b> ₹${todayTotal}`;
 }
 
-/* DELETE ORDER */
-function deleteOrder(id){
- if(confirm("Delete this order?")){
-  db.collection("orders").doc(id).delete();
+/* APPROVE */
+async function approve(id,mobile,invoice,amt){
+ await db.collection("orders").doc(id).update({
+  status:"Done",
+  invoice:invoice
+ });
+ window.open(
+  `https://wa.me/91${mobile}?text=${encodeURIComponent(
+   `✅ ORDER APPROVED\nInvoice: ${invoice}\nAmount: ₹${amt}`
+  )}`,"_blank"
+ );
+}
+
+/* REJECT */
+function rejectOrder(id){
+ if(confirm("Reject this order?")){
+  db.collection("orders").doc(id).update({status:"Rejected"});
  }
+}
+
+/* PDF */
+function pdf(inv,name,items,total,gst,grand){
+ const {jsPDF}=window.jspdf;
+ let p=new jsPDF();
+ p.text("INVOICE",80,10);
+ p.text(`Invoice: ${inv}`,10,20);
+ p.text(`Customer: ${name}`,10,30);
+ p.text("Items:",10,40);
+ p.text(items,10,50);
+ p.text(`Total: ₹${total}`,10,120);
+ p.text(`GST: ₹${gst}`,10,130);
+ p.text(`Grand Total: ₹${grand}`,10,140);
+ p.save(inv+".pdf");
 }
 </script>
 
