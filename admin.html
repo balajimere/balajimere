@@ -58,6 +58,7 @@ button.gray{background:#777}
     <input id="pname" placeholder="Product Name">
     <input id="pprice" placeholder="Price">
     <input id="pmrp" placeholder="MRP">
+    <input id="pmobile" placeholder="Mobile Number">
     <textarea id="pdesc" placeholder="Product Description"></textarea>
     <input type="file" id="images" multiple>
 
@@ -72,6 +73,7 @@ button.gray{background:#777}
   <div class="card">
     <button onclick="location.href='user.html'">View Users</button>
     <button onclick="location.href='admin-order.html'">View Orders</button>
+    <button onclick="location.href='status-admin.html'">Status Panel</button>
   </div>
 
   <button class="red" onclick="logout()">Logout</button>
@@ -124,7 +126,7 @@ function loadCategories(){
  });
 }
 
-/* ✅ IMAGE UPLOAD FIXED */
+/* IMAGE UPLOAD */
 async function addProduct(){
  let imageInput = document.getElementById("images");
  let urls = [];
@@ -151,6 +153,7 @@ async function addProduct(){
   name:pname.value,
   price:pprice.value,
   mrp:pmrp.value,
+  mobile:pmobile.value,
   description:pdesc.value,
   images:urls,
   image:urls[0] || "",
@@ -169,6 +172,7 @@ async function addProduct(){
  pname.value="";
  pprice.value="";
  pmrp.value="";
+ pmobile.value="";
  pdesc.value="";
  imageInput.value="";
 }
@@ -182,7 +186,7 @@ function loadProducts(){
    productList.innerHTML+=`
    <div class="product">
     <b>${p.name}</b><br>
-    <span class="small">${p.category} | ₹${p.price}</span>
+    <span class="small">${p.category} | ₹${p.price} | ${p.mobile||""}</span>
     <div class="actions">
      <button onclick="editProduct('${d.id}',${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button>
      <button class="red" onclick="delProduct('${d.id}')">Delete</button>
@@ -199,6 +203,7 @@ function editProduct(id,p){
  pname.value=p.name||"";
  pprice.value=p.price||"";
  pmrp.value=p.mrp||"";
+ pmobile.value=p.mobile||"";
  pdesc.value=p.description||"";
  pcategory.value=p.category||"";
  window.scrollTo(0,0);
@@ -216,4 +221,4 @@ function togglePin(id,v){
 </script>
 
 </body>
-  </html>
+</html>
