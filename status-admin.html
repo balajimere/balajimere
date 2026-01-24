@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Status Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+body{font-family:Arial;background:#f2f2f2;margin:0}
+header{background:#03A64A;color:#fff;padding:12px;text-align:center;font-size:18px}
+.card{background:#fff;margin:12px;padding:12px;border-radius:10px}
+input,textarea,button,select{width:100%;padding:8px;margin-top:8px}
+.status{border-bottom:1px solid #ddd;padding:8px 0}
+img{max-width:100%;border-radius:6px;margin-top:5px}
+</style>
+</head>
+
+<body>
+
+<header>Status Admin Panel</header>
+
+<div class="card" id="loginBox">
+  <h3>Admin Login</h3>
+  <input id="email" placeholder="Admin Email">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="panel" style="display:none">
+
+<div class="card">
+  <select id="category">
+    <option value="Offer">Offer</option>
+    <option value="News">News</option>
+    <option value="Festival">Festival</option>
+    <option value="Product">Product</option>
+  </select>
+
+  <textarea id="text" placeholder="Type status text..."></textarea>
+
+  <textarea id="images" placeholder="Enter Image URLs (comma separated)"></textarea>
+
+  <input id="link" placeholder="Clickable Link (optional)">
+
+  <button onclick="addStatus()">Add Status</button>
+</div>
+
+<div class="card" id="list"></div>
+
+<button onclick="logout()" style="margin:12px;background:red;color:white">Logout</button>
+
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+  authDomain:"balajimere-c8eb9.firebaseapp.com",
+  projectId:"balajimere-c8eb9"
+});
+
+const auth=firebase.auth();
+const db=firebase.firestore();
+const ADMIN_EMAIL="balajimere.admin@gmail.com";
+
+/* LOGIN */
+function login(){
+ auth.signInWithEmailAndPassword(email.value,password.value);
+}
+function logout(){
+ auth.signOut();
+}
+
+auth.onAuthStateChanged(u=>{
+ if(u && u.email===ADMIN_EMAIL){
+  loginBox.style.display="none";
+  panel.style.display="block";
+ }else{
+  panel.style.display="none";
+  loginBox.style.display="block";
+ }
+});
+
+/* ADD STATUS */
+function addStatus(){
+ if(!text.value) return alert("Enter status text");
+
+ let imgs = images.value
+   ? images.value.split(",").map(i=>i.trim())
+   : [];
+
+ db.collection("status").add({
+  category:category.value,
+  text:text.value,
+  images:imgs,
+  link:link.value||"",
+  time:new Date()
+ });
+
+ text.value="";
+ images.value="";
+ link.value="";
+}
+
+/* LIST STATUS */
+db.collection("status").orderBy("time","desc").onSnapshot(s=>{
+ list.innerHTML="";
+ s.forEach(d=>{
+  let st=d.data();
+  let imgs="";
+  if(st.images){
+    st.images.forEach(i=>{
+      imgs+=`<img src="${i}">`;
+    });
+  }
+
+  list.innerHTML+=`
+   <div class="status">
+    <b>${st.category}</b><br>
+    ${st.text}<br>
+    ${imgs}
+    ${st.link?`<a href="${st.link}" target="_blank">Open Link</a><br>`:""}
+    <button onclick="del('${d.id}')">Delete</button>
+   </div>
+  `;
+ });
+});
+
+function del(id){
+ if(confirm("Delete status?"))
+  db.collection("status").doc(id).delete();
+}
+</script>
+
+</body>
+</html>
