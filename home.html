@@ -16,7 +16,30 @@
 <style>
 :root{--green:#03A64A}
 body{margin:0;font-family:Arial;background:#f7f7f7}
-header{background:var(--green);color:#fff;text-align:center;padding:14px;font-size:20px;font-weight:bold}
+
+/* HEADER */
+header{
+ background:var(--green);
+ color:#fff;
+ padding:14px;
+ font-size:22px;
+ font-weight:bold;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ position:relative;
+ letter-spacing:1px
+}
+header span{font-weight:700}
+
+/* MENU BUTTON IN HEADER */
+.menu-btn{
+ position:absolute;
+ left:12px;
+ font-size:22px;
+ color:#fff;
+ cursor:pointer
+}
 
 /* STATUS BAR */
 .status-bar{display:flex;overflow-x:auto;padding:10px;background:#fff;scroll-behavior:smooth}
@@ -31,7 +54,7 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
 
 .category{padding:10px;font-size:18px;font-weight:bold;color:#333}
 
-/* PRODUCTS (2 per row mobile) */
+/* PRODUCTS (2 per row) */
 .products{
  padding:12px;
  display:grid;
@@ -45,9 +68,6 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
 .slider{position:relative;overflow:hidden}
 .slider-track{display:flex;transition:.4s}
 .slider img{width:100%;height:180px;object-fit:cover;flex-shrink:0;cursor:pointer}
-
-.slide-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.4);color:#fff;border:none;padding:6px 10px;cursor:pointer;font-size:18px}
-.prev{left:5px}.next{right:5px}
 
 .info{padding:10px}
 .price{color:var(--green);font-weight:bold}
@@ -63,7 +83,6 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
 .bottom-nav i{font-size:22px;color:var(--green)}
 
 /* SIDE MENU */
-.menu-btn{position:fixed;bottom:12px;left:12px;font-size:24px;color:#fff;background:var(--green);padding:10px;border-radius:50%;z-index:20}
 .side-menu{
  position:fixed;
  top:0;left:-260px;
@@ -91,7 +110,10 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
 
 <body>
 
-<header>Shree Balaji Oil Agency</header>
+<header>
+  <div class="menu-btn" onclick="toggleMenu()">☰</div>
+  <span>Shree Balaji Oil Agency</span>
+</header>
 
 <!-- SIDE MENU -->
 <div class="side-menu" id="sideMenu">
@@ -105,9 +127,6 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
  <a href="privacy.html">Privacy</a>
  <a href="home.html" class="close">❌ Close</a>
 </div>
-
-<!-- MENU BUTTON -->
-<div class="menu-btn" onclick="toggleMenu()">☰</div>
 
 <!-- STATUS BAR -->
 <div class="status-bar" id="statusBar"></div>
@@ -138,7 +157,6 @@ firebase.initializeApp({
 const db=firebase.firestore();
 let ALL=[];
 
-/* MENU */
 function toggleMenu(){
  document.getElementById("sideMenu").classList.toggle("show");
 }
@@ -147,54 +165,35 @@ function toggleMenu(){
 db.collection("status").orderBy("time","desc").onSnapshot(s=>{
  statusBar.innerHTML="";
  let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
-
  s.forEach(d=>{
   let st=d.data();
   let thumb = st.images && st.images[0] ? st.images[0] : "https://via.placeholder.com/60";
   let isSeen = seen.includes(d.id);
-
   statusBar.innerHTML+=`
    <div class="story ${isSeen?"seen":""}" onclick="openStatus('${d.id}')">
     <img src="${thumb}">
     <span>${st.category || "Status"}</span>
-   </div>
-  `;
+   </div>`;
  });
 });
 
-/* AUTO SLIDE STATUS */
-setInterval(()=>{
- statusBar.scrollLeft += 80;
- if(statusBar.scrollLeft >= statusBar.scrollWidth - statusBar.clientWidth){
-  statusBar.scrollLeft = 0;
- }
-},2500);
-
 function openStatus(id){
  let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
- if(!seen.includes(id)){
-  seen.push(id);
-  localStorage.setItem("seenStatus",JSON.stringify(seen));
- }
+ if(!seen.includes(id)){seen.push(id);localStorage.setItem("seenStatus",JSON.stringify(seen));}
  location.href="status.html?id="+id;
 }
 
-/* LOGIN CHECK */
 function isLogin(){return localStorage.getItem("user");}
 
-/* LOAD PRODUCTS */
+/* PRODUCTS */
 db.collection("products").where("hidden","!=",true).onSnapshot(snap=>{
  ALL=[];let cats=new Set();
- snap.forEach(d=>{
-  let p=d.data();p.id=d.id;
-  ALL.push(p);cats.add(p.category||"Other");
- });
+ snap.forEach(d=>{let p=d.data();p.id=d.id;ALL.push(p);cats.add(p.category||"Other");});
  catFilter.innerHTML='<option value="">All Categories</option>';
  cats.forEach(c=>catFilter.innerHTML+=`<option>${c}</option>`);
  render();
 });
 
-/* RENDER */
 function render(){
  let list=document.getElementById("productList");
  list.innerHTML="";
@@ -202,11 +201,7 @@ function render(){
  let cat=catFilter.value;
  let data=ALL.filter(p=>(!cat||p.category==cat)&&p.name.toLowerCase().includes(search));
  let group={};
- data.forEach(p=>{
-  let c=p.category||"Other";
-  if(!group[c])group[c]=[];
-  group[c].push(p);
- });
+ data.forEach(p=>{let c=p.category||"Other";if(!group[c])group[c]=[];group[c].push(p);});
  Object.keys(group).forEach(cat=>{
   list.innerHTML+=`<div class="category">${cat}</div><div class="products">`;
   group[cat].forEach(p=>{
@@ -214,9 +209,7 @@ function render(){
    let slides=imgs.map(i=>`<img src="${i}" onclick="view('${p.id}')">`).join("");
    list.innerHTML+=`
    <div class="card">
-    <div class="slider" data-index="0">
-     <div class="slider-track">${slides}</div>
-    </div>
+    <div class="slider"><div class="slider-track">${slides}</div></div>
     <div class="info">
      <b>${p.name}</b><br>
      <span class="price">₹${p.price}</span>
