@@ -18,6 +18,24 @@
 body{margin:0;font-family:Arial;background:#f7f7f7}
 header{background:var(--green);color:#fff;text-align:center;padding:14px;font-size:20px;font-weight:bold}
 
+/* STATUS BAR */
+.status-bar{display:flex;overflow-x:auto;padding:10px;background:#fff;scroll-behavior:smooth}
+.story{
+ min-width:70px;
+ text-align:center;
+ margin-right:10px;
+ cursor:pointer
+}
+.story img{
+ width:60px;height:60px;
+ border-radius:50%;
+ border:3px solid #03A64A;
+ object-fit:cover
+}
+.story.seen img{border-color:#999}
+.story span{font-size:12px}
+
+/* EXISTING CSS */
 .top-tools{
  display:flex;gap:8px;
  padding:10px;background:#fff;
@@ -76,7 +94,6 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
  color:#fff;font-size:13px;
  cursor:pointer
 }
-.order{background:var(--green)}
 .cart{background:#ff9800}
 .share{background:#555}
 
@@ -94,6 +111,9 @@ header{background:var(--green);color:#fff;text-align:center;padding:14px;font-si
 <body>
 
 <header>Shree Balaji Oil Agency</header>
+
+<!-- STATUS BAR -->
+<div class="status-bar" id="statusBar"></div>
 
 <!-- SEARCH + CATEGORY FILTER -->
 <div class="top-tools">
@@ -120,6 +140,42 @@ firebase.initializeApp({
 
 const db=firebase.firestore();
 let ALL=[];
+
+/* STATUS LOAD */
+db.collection("status").orderBy("time","desc").onSnapshot(s=>{
+ statusBar.innerHTML="";
+ let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
+
+ s.forEach(d=>{
+  let st=d.data();
+  let thumb = st.images && st.images[0] ? st.images[0] : "https://via.placeholder.com/60";
+  let isSeen = seen.includes(d.id);
+
+  statusBar.innerHTML+=`
+   <div class="story ${isSeen?"seen":""}" onclick="openStatus('${d.id}')">
+    <img src="${thumb}">
+    <span>${st.category || "Status"}</span>
+   </div>
+  `;
+ });
+});
+
+/* AUTO SLIDE STATUS */
+setInterval(()=>{
+ statusBar.scrollLeft += 80;
+ if(statusBar.scrollLeft >= statusBar.scrollWidth - statusBar.clientWidth){
+  statusBar.scrollLeft = 0;
+ }
+},2500);
+
+function openStatus(id){
+ let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
+ if(!seen.includes(id)){
+  seen.push(id);
+  localStorage.setItem("seenStatus",JSON.stringify(seen));
+ }
+ location.href="status.html?id="+id;
+}
 
 /* LOGIN CHECK */
 function isLogin(){
@@ -190,8 +246,7 @@ function render(){
      <span class="mrp">₹${p.mrp||""}</span>
 
      <div class="actions">
-      <button class="order" onclick="order('${p.name}')">Order</button>
-      <button class="cart" onclick='addCart(${JSON.stringify(p)})'>Cart</button>
+      <button class="cart" onclick='addCart(${JSON.stringify(p)})'>Buy Now</button>
       <button class="share" onclick="share('${p.name}')">Share</button>
      </div>
     </div>
@@ -226,15 +281,7 @@ function addCart(p){
  let c=JSON.parse(localStorage.getItem("cart")||"[]");
  c.push({...p,qty:q});
  localStorage.setItem("cart",JSON.stringify(c));
- alert("Added to cart");
-}
-
-/* ORDER */
-function order(name){
- if(!isLogin()) return location.href="login.html";
- let q=prompt("Quantity?");
- if(!q||q<=0) return;
- location.href=`order.html?product=${encodeURIComponent(name)}&qty=${q}`;
+ location.href="cart.html";
 }
 
 /* SHARE */
@@ -246,4 +293,4 @@ function share(name){
 </script>
 
 </body>
- </html>
+</html>
