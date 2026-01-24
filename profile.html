@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Profile</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+body{margin:0;font-family:Arial;background:#f2f2f2}
+header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:22px;font-family:cursive}
+.card{background:#fff;margin:15px;padding:15px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+.row{margin-bottom:10px;font-size:16px}
+b{color:#333}
+button{
+ width:100%;
+ padding:10px;
+ border:none;
+ border-radius:8px;
+ background:#03A64A;
+ color:#fff;
+ font-size:16px;
+ cursor:pointer
+}
+.logout{background:#e53935;margin-top:10px}
+</style>
+</head>
+
+<body>
+
+<header>My Profile</header>
+
+<div class="card" id="profileBox">
+  Loading profile...
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+  authDomain:"balajimere-c8eb9.firebaseapp.com",
+  projectId:"balajimere-c8eb9"
+});
+
+const auth=firebase.auth();
+const db=firebase.firestore();
+
+auth.onAuthStateChanged(user=>{
+ if(!user){
+   location.href="login.html";
+ }else{
+   loadProfile(user);
+ }
+});
+
+function loadProfile(user){
+ db.collection("users").doc(user.uid).get().then(doc=>{
+   let data=doc.exists?doc.data():{};
+   profileBox.innerHTML=`
+    <div class="row"><b>Name:</b> ${data.name || "Not set"}</div>
+    <div class="row"><b>Email:</b> ${user.email || "Not set"}</div>
+    <div class="row"><b>Phone:</b> ${data.phone || "Not set"}</div>
+    <button onclick="editProfile()">Edit Profile</button>
+    <button class="logout" onclick="logout()">Logout</button>
+   `;
+ });
+}
+
+function editProfile(){
+ let name=prompt("Enter name");
+ let phone=prompt("Enter phone");
+ let user=auth.currentUser;
+ if(!user) return;
+ db.collection("users").doc(user.uid).set({
+   name:name,
+   phone:phone,
+   email:user.email
+ },{merge:true}).then(()=>{
+   alert("Profile updated");
+   loadProfile(user);
+ });
+}
+
+function logout(){
+ auth.signOut().then(()=>{
+   location.href="login.html";
+ });
+}
+</script>
+
+</body>
+</html>
