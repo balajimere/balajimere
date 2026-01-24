@@ -141,10 +141,11 @@ async function rejectOrder(id,mobile){
 
 async function saveCourier(id){
  await db.collection("orders").doc(id).update({
-  courierName:cname["cname-"+id]?.value,
-  courierPhone:cphone["cphone-"+id]?.value,
-  tracking:track["track-"+id]?.value
+  courierName:document.getElementById("cname-"+id).value,
+  courierPhone:document.getElementById("cphone-"+id).value,
+  tracking:document.getElementById("track-"+id).value
  });
+ alert("Courier details saved");
 }
 
 async function dispatch(id,mobile,inv,amt){
@@ -165,7 +166,35 @@ function exportExcel(){
  XLSX.utils.book_append_sheet(wb,ws,"Orders");
  XLSX.writeFile(wb,"Orders.xlsx");
 }
+
+/* PDF FUNCTION */
+function pdf(invoice, order){
+ const { jsPDF } = window.jspdf;
+ const doc = new jsPDF();
+
+ let y=15;
+ doc.setFontSize(16);
+ doc.text("Shree Balaji Oil Agency",105,y,{align:"center"});
+ y+=10;
+
+ doc.setFontSize(10);
+ doc.text(`Invoice: ${invoice}`,10,y); y+=6;
+ doc.text(`Name: ${order.user.name}`,10,y); y+=6;
+ doc.text(`Mobile: ${order.user.mobile}`,10,y); y+=6;
+ doc.text(`Shop: ${order.user.shop}`,10,y); y+=6;
+ doc.text(`Address: ${order.user.address}`,10,y); y+=8;
+
+ order.products.forEach(p=>{
+  doc.text(`${p.name} x ${p.qty} = ₹${p.price*p.qty}`,10,y);
+  y+=6;
+ });
+
+ y+=6;
+ doc.text(`Total Amount: ₹${order.total}`,10,y);
+
+ doc.save(invoice+".pdf");
+}
 </script>
 
 </body>
- </html>
+</html>
