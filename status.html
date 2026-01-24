@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Status Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+body{margin:0;background:#000;color:#fff;font-family:Arial}
+.viewer{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ height:100vh;
+ text-align:center
+}
+img{max-width:100%;max-height:70vh;border-radius:10px}
+.text{padding:10px;font-size:16px}
+a{color:#00ffcc;font-size:16px}
+button{margin-top:10px;padding:10px 16px;background:#03A64A;color:#fff;border:none}
+</style>
+</head>
+
+<body>
+
+<div class="viewer">
+ <img id="img">
+ <div class="text" id="text"></div>
+ <a id="link" target="_blank"></a>
+ <button onclick="next()">Next</button>
+</div>
+
+<script>
+firebase.initializeApp({
+ apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain:"balajimere-c8eb9.firebaseapp.com",
+ projectId:"balajimere-c8eb9"
+});
+const db=firebase.firestore();
+
+let params=new URLSearchParams(location.search);
+let id=params.get("id");
+
+let images=[];
+let index=0;
+
+db.collection("status").doc(id).get().then(d=>{
+ let st=d.data();
+ images=st.images || [];
+ text.innerText=st.text || "";
+
+ if(st.link){
+  link.innerText="Open Link";
+  link.href=st.link;
+ }else{
+  link.style.display="none";
+ }
+
+ show();
+});
+
+function show(){
+ img.src=images[index];
+}
+
+function next(){
+ if(index < images.length-1){
+  index++;
+  show();
+ }else{
+  history.back();
+ }
+}
+</script>
+
+</body>
+</html>
