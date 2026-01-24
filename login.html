@@ -96,9 +96,17 @@ firebase.initializeApp({
 const db = firebase.firestore();
 let uploadedPhotoURL="";
 
+/* ✅ FIX: GET INPUT ELEMENTS */
+const nameInput = document.getElementById("name");
+const mobileInput = document.getElementById("mobile");
+const shopInput = document.getElementById("shop");
+const addressInput = document.getElementById("address");
+const photoInput = document.getElementById("photo");
+const profilePreview = document.getElementById("profilePreview");
+
 /* PHOTO PREVIEW */
-document.getElementById("photo").onchange = ()=>{
- let f = photo.files[0];
+photoInput.onchange = ()=>{
+ let f = photoInput.files[0];
  if(f){
    profilePreview.src = URL.createObjectURL(f);
  }
@@ -115,17 +123,17 @@ async function checkLogin(){
    localStorage.setItem("user",JSON.stringify(doc.data()));
    showProfile(doc.data());
  }else{
-   document.getElementById("mobile").value = m;
+   mobileInput.value = m;
    loginBox.classList.add("hide");
    registerBox.classList.remove("hide");
  }
 }
 
-/* UPLOAD IMAGE TO IMGBB */
+/* UPLOAD IMAGE */
 async function uploadPhoto(){
- if(!photo.files[0]) return "";
+ if(!photoInput.files[0]) return "";
  let formData = new FormData();
- formData.append("image", photo.files[0]);
+ formData.append("image", photoInput.files[0]);
 
  let res = await fetch("https://api.imgbb.com/1/upload?key=5e77bfe737324a6c147697a13fefcb3d",{
    method:"POST",
@@ -139,17 +147,17 @@ async function uploadPhoto(){
 /* SAVE USER */
 async function saveUser(){
  try{
-   let n = name.value.trim();
-   let m = mobile.value.trim();
-   let s = shop.value.trim();
-   let a = address.value.trim();
+   let n = nameInput.value.trim();
+   let m = mobileInput.value.trim();
+   let s = shopInput.value.trim();
+   let a = addressInput.value.trim();
 
    if(!n || !m || !s || !a){
      alert("Fill all details");
      return;
    }
 
-   if(photo.files[0]){
+   if(photoInput.files[0]){
      uploadedPhotoURL = await uploadPhoto();
    }
 
@@ -178,10 +186,10 @@ function showProfile(d){
  loginBox.classList.add("hide");
  registerBox.classList.remove("hide");
 
- name.value = d.name || "";
- mobile.value = d.mobile || "";
- shop.value = d.shop || "";
- address.value = d.address || "";
+ nameInput.value = d.name || "";
+ mobileInput.value = d.mobile || "";
+ shopInput.value = d.shop || "";
+ addressInput.value = d.address || "";
  if(d.photo) profilePreview.src = d.photo;
 }
 
@@ -199,4 +207,4 @@ if(u){
 </script>
 
 </body>
- </html>
+  </html>
