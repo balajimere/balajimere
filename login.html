@@ -45,6 +45,15 @@ button{
 button.red{background:var(--red)}
 .small{text-align:center;font-size:13px;color:#777;margin-top:10px}
 .hide{display:none}
+.profile-img{
+ width:100px;
+ height:100px;
+ border-radius:50%;
+ object-fit:cover;
+ display:block;
+ margin:10px auto;
+ border:2px solid #03A64A
+}
 </style>
 </head>
 
@@ -61,6 +70,10 @@ button.red{background:var(--red)}
 
 <!-- REGISTER / PROFILE -->
 <div id="registerBox" class="hide">
+
+ <img id="profilePreview" class="profile-img" src="https://via.placeholder.com/100">
+ <input type="file" id="photo" accept="image/*">
+
  <input id="name" placeholder="Name">
  <input id="mobile" placeholder="Mobile Number" maxlength="10">
  <input id="shop" placeholder="Shop Name">
@@ -81,6 +94,15 @@ firebase.initializeApp({
 });
 
 const db = firebase.firestore();
+let uploadedPhotoURL="";
+
+/* PHOTO PREVIEW */
+document.getElementById("photo").onchange = ()=>{
+ let f = photo.files[0];
+ if(f){
+   profilePreview.src = URL.createObjectURL(f);
+ }
+}
 
 /* CHECK LOGIN */
 async function checkLogin(){
@@ -99,17 +121,36 @@ async function checkLogin(){
  }
 }
 
-/* ✅ FIXED SAVE USER */
+/* UPLOAD IMAGE TO IMGBB */
+async function uploadPhoto(){
+ if(!photo.files[0]) return "";
+ let formData = new FormData();
+ formData.append("image", photo.files[0]);
+
+ let res = await fetch("https://api.imgbb.com/1/upload?key=5e77bfe737324a6c147697a13fefcb3d",{
+   method:"POST",
+   body:formData
+ });
+
+ let data = await res.json();
+ return data.data.url;
+}
+
+/* SAVE USER */
 async function saveUser(){
  try{
-   let n = document.getElementById("name").value.trim();
-   let m = document.getElementById("mobile").value.trim();
-   let s = document.getElementById("shop").value.trim();
-   let a = document.getElementById("address").value.trim();
+   let n = name.value.trim();
+   let m = mobile.value.trim();
+   let s = shop.value.trim();
+   let a = address.value.trim();
 
    if(!n || !m || !s || !a){
      alert("Fill all details");
      return;
+   }
+
+   if(photo.files[0]){
+     uploadedPhotoURL = await uploadPhoto();
    }
 
    let data={
@@ -117,28 +158,31 @@ async function saveUser(){
      mobile:m,
      shop:s,
      address:a,
+     photo:uploadedPhotoURL,
      time:new Date()
    };
 
    await db.collection("users").doc(m).set(data,{merge:true});
    localStorage.setItem("user",JSON.stringify(data));
 
-   alert("Profile Saved / Updated");
+   alert("Profile Saved");
+   location.href="home.html";
 
  }catch(e){
    alert("Error: " + e.message);
  }
 }
 
-/* SHOW PROFILE AFTER LOGIN */
+/* SHOW PROFILE */
 function showProfile(d){
  loginBox.classList.add("hide");
  registerBox.classList.remove("hide");
 
- document.getElementById("name").value = d.name || "";
- document.getElementById("mobile").value = d.mobile || "";
- document.getElementById("shop").value = d.shop || "";
- document.getElementById("address").value = d.address || "";
+ name.value = d.name || "";
+ mobile.value = d.mobile || "";
+ shop.value = d.shop || "";
+ address.value = d.address || "";
+ if(d.photo) profilePreview.src = d.photo;
 }
 
 /* LOGOUT */
@@ -155,4 +199,4 @@ if(u){
 </script>
 
 </body>
-</html>
+ </html>
