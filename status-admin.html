@@ -33,16 +33,16 @@ img{max-width:100%;border-radius:6px;margin-top:5px}
 <div id="panel" style="display:none">
 
 <div class="card">
-  <select id="category">
-    <option value="Offer">Offer</option>
-    <option value="News">News</option>
-    <option value="Festival">Festival</option>
-    <option value="Product">Product</option>
-  </select>
+  <!-- ✅ CATEGORY CREATE -->
+  <input id="newCategory" placeholder="Create New Category">
+  <button onclick="addCategory()">Add Category</button>
+
+  <select id="category"></select>
 
   <textarea id="text" placeholder="Type status text..."></textarea>
 
-  <textarea id="images" placeholder="Enter Image URLs (comma separated)"></textarea>
+  <!-- ✅ IMAGE FILE UPLOAD -->
+  <input type="file" id="photo" multiple>
 
   <input id="link" placeholder="Clickable Link (optional)">
 
@@ -65,6 +65,7 @@ firebase.initializeApp({
 const auth=firebase.auth();
 const db=firebase.firestore();
 const ADMIN_EMAIL="balajimere.admin@gmail.com";
+const IMGBB_KEY="5e77bfe737324a6c147697a13fefcb3d";
 
 /* LOGIN */
 function login(){
@@ -78,31 +79,64 @@ auth.onAuthStateChanged(u=>{
  if(u && u.email===ADMIN_EMAIL){
   loginBox.style.display="none";
   panel.style.display="block";
+  loadCategories();
  }else{
   panel.style.display="none";
   loginBox.style.display="block";
  }
 });
 
+/* CATEGORY */
+async function addCategory(){
+ let c=newCategory.value.trim();
+ if(!c) return alert("Enter category name");
+ await db.collection("statusCategories").doc(c).set({name:c});
+ newCategory.value="";
+}
+function loadCategories(){
+ db.collection("statusCategories").onSnapshot(s=>{
+  category.innerHTML="";
+  s.forEach(d=>{
+   category.innerHTML+=`<option value="${d.id}">${d.id}</option>`;
+  });
+ });
+}
+
 /* ADD STATUS */
-function addStatus(){
+async function addStatus(){
  if(!text.value) return alert("Enter status text");
 
- let imgs = images.value
-   ? images.value.split(",").map(i=>i.trim())
-   : [];
+ let urls=[];
 
- db.collection("status").add({
+ let files=document.getElementById("photo").files;
+ if(files.length>0){
+  for(let f of files){
+   let fd=new FormData();
+   fd.append("image",f);
+
+   let res=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB_KEY,{
+     method:"POST",
+     body:fd
+   });
+
+   let json=await res.json();
+   if(json.data && json.data.url){
+     urls.push(json.data.url);
+   }
+  }
+ }
+
+ await db.collection("status").add({
   category:category.value,
   text:text.value,
-  images:imgs,
+  images:urls,
   link:link.value||"",
   time:new Date()
  });
 
  text.value="";
- images.value="";
  link.value="";
+ photo.value="";
 }
 
 /* LIST STATUS */
