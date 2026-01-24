@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Contact Us</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{margin:0;font-family:Arial;background:#f2f2f2}
+header{
+ background:#03A64A;
+ color:#fff;
+ padding:14px;
+ text-align:center;
+ font-size:22px;
+ font-family:cursive
+}
+.card{
+ background:#fff;
+ margin:15px;
+ padding:15px;
+ border-radius:10px;
+ box-shadow:0 2px 6px rgba(0,0,0,.1)
+}
+.row{margin-bottom:10px;font-size:16px}
+.icon{color:#03A64A;margin-right:6px}
+button{
+ width:100%;
+ padding:12px;
+ border:none;
+ border-radius:8px;
+ background:#03A64A;
+ color:#fff;
+ font-size:16px;
+ cursor:pointer;
+ margin-top:10px
+}
+.map{
+ width:100%;
+ height:250px;
+ border:0;
+ border-radius:10px;
+ margin-top:10px
+}
+</style>
+</head>
+
+<body>
+
+<header>Contact Us</header>
+
+<div class="card">
+ <div class="row"><b>📍 Address:</b> Shree Balaji Oil Agency, Main Road, Your City</div>
+ <div class="row"><b>📞 Phone:</b> <a href="tel:9876543210">9876543210</a></div>
+ <div class="row"><b>✉ Email:</b> balajioil@gmail.com</div>
+
+ <button onclick="location.href='https://wa.me/919876543210'">Chat on WhatsApp</button>
+</div>
+
+<div class="card">
+ <b>Find Us on Map</b>
+ <iframe class="map"
+  src="https://www.google.com/maps?q=delhi&output=embed">
+ </iframe>
+</div>
+
+</body>
+</html>
