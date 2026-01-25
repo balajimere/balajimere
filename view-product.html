@@ -18,7 +18,7 @@ body{margin:0;font-family:Arial;background:#f6f6f6}
 header{background:var(--green);color:#fff;padding:14px;text-align:center;font-size:18px;font-weight:bold}
 
 .slider{position:relative;overflow:hidden;background:#000}
-.slides{display:flex;transition:.4s}
+.slides{display:flex;transition:.4s; touch-action: pan-x;}
 .slides img{width:100%;max-height:360px;object-fit:contain;background:#000}
 
 .nav{position:absolute;top:50%;transform:translateY(-50%);font-size:30px;color:#fff;padding:10px;cursor:pointer}
@@ -33,8 +33,13 @@ header{background:var(--green);color:#fff;padding:14px;text-align:center;font-si
  width:100%;margin-top:8px;padding:12px;border:none;
  border-radius:8px;color:#fff;font-size:15px;cursor:pointer
 }
-.order{background:var(--green)}
-.cart{background:#ff9800}
+.buy{background:#ff9800}
+
+.call-btn{
+ width:100%;margin-top:8px;padding:12px;border:none;border-radius:8px;
+ background:#03A64A;color:#fff;font-size:15px;cursor:pointer;
+ display:block;text-align:center;
+}
 
 .comments{margin-top:14px}
 .comment{padding:8px 0;border-bottom:1px solid #eee;font-size:14px}
@@ -68,8 +73,8 @@ header{background:var(--green);color:#fff;padding:14px;text-align:center;font-si
   <div class="desc" id="desc"></div>
 
   <div class="actions">
-    <button class="order" onclick="order()">Order Now</button>
-    <button class="cart" onclick="addCart()">Add to Cart</button>
+    <button class="buy" onclick="addCart()">Buy Now</button>
+    <button class="call-btn" onclick="callShop()">Call</button>
   </div>
 </div>
 
@@ -92,8 +97,13 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 const id = new URLSearchParams(location.search).get("id");
-
 let product={}, index=0;
+
+/* LOGIN CHECK FOR COMMENTS */
+let user = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
+if(!user){
+ commentText.disabled=true;
+}
 
 /* LOAD PRODUCT */
 db.collection("products").doc(id).get().then(d=>{
@@ -117,20 +127,24 @@ function move(n){
  slides.style.transform=`translateX(-${index*100}%)`;
 }
 
-/* ORDER */
-function order(){
- location.href="order.html?product="+encodeURIComponent(product.name);
-}
-
-/* CART */
+/* BUY NOW */
 function addCart(){
- let c=JSON.parse(localStorage.getItem("cart")||"[]");
- c.push({...product,id});
- localStorage.setItem("cart",JSON.stringify(c));
- alert("Added to cart");
+ if(!user) return location.href="login.html";
+ let q = prompt("Quantity?");
+ if(!q || q<=0) return;
+ let c = JSON.parse(localStorage.getItem("cart")||"[]");
+ c.push({...product, qty:q, id});
+ localStorage.setItem("cart", JSON.stringify(c));
+ location.href="cart.html";
 }
 
-/* COMMENTS (Realtime – Instagram style) */
+/* CALL BUTTON */
+function callShop(){
+ if(product.contact) window.location.href="tel:"+product.contact;
+ else alert("Call number not available");
+}
+
+/* COMMENTS (with user name) */
 db.collection("products").doc(id)
 .collection("comments").orderBy("time","asc")
 .onSnapshot(s=>{
@@ -139,22 +153,24 @@ db.collection("products").doc(id)
   let c=d.data();
   commentList.innerHTML+=`
    <div class="comment">
-    <b>User:</b> ${c.text}
+    <b>${c.user||"User"}:</b> ${c.text}
    </div>`;
  });
 });
 
 function sendComment(){
- let t=commentText.value.trim();
+ if(!user) return location.href="login.html";
+ let t = commentText.value.trim();
  if(!t) return;
  db.collection("products").doc(id)
  .collection("comments").add({
-  text:t,
-  time:new Date()
+  text: t,
+  user: user.name,
+  time: new Date()
  });
  commentText.value="";
 }
 </script>
 
 </body>
-  </html>
+</html>
