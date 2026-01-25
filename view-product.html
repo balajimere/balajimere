@@ -41,6 +41,12 @@ header{background:var(--green);color:#fff;padding:14px;text-align:center;font-si
  display:block;text-align:center;
 }
 
+.share-btn{
+ width:100%;margin-top:8px;padding:12px;border:none;border-radius:8px;
+ background:#555;color:#fff;font-size:15px;cursor:pointer;
+ display:block;text-align:center;
+}
+
 .comments{margin-top:14px}
 .comment{padding:8px 0;border-bottom:1px solid #eee;font-size:14px}
 .comment b{color:#333}
@@ -75,6 +81,7 @@ header{background:var(--green);color:#fff;padding:14px;text-align:center;font-si
   <div class="actions">
     <button class="buy" onclick="addCart()">Buy Now</button>
     <button class="call-btn" onclick="callShop()">Call</button>
+    <button class="share-btn" onclick="shareProduct()">Share</button>
   </div>
 </div>
 
@@ -138,10 +145,22 @@ function addCart(){
  location.href="cart.html";
 }
 
-/* CALL BUTTON */
+/* CALL BUTTON (FIXED) */
 function callShop(){
- if(product.contact) window.location.href="tel:"+product.contact;
+ let num = product.contact || product.phone || product.mobile;
+ if(num) window.location.href="tel:"+num;
  else alert("Call number not available");
+}
+
+/* SHARE */
+function shareProduct(){
+ let text = product.name + " - ₹" + product.price;
+ let url = location.href;
+ if(navigator.share){
+   navigator.share({title:product.name,text:text,url:url});
+ }else{
+   window.open("https://wa.me/?text="+encodeURIComponent(text+" "+url));
+ }
 }
 
 /* COMMENTS (with user name) */
@@ -173,4 +192,4 @@ function sendComment(){
 </script>
 
 </body>
-</html>
+ </html>
