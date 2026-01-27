@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Users - Shree Balaji Oil Agency</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+body{margin:0;font-family:Arial;background:#f4f6f8}
+header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20px;font-weight:bold}
+.container{padding:14px}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+.user{border-bottom:1px solid #eee;padding:8px 0;display:flex;align-items:center;gap:8px}
+.user img{width:40px;height:40px;border-radius:50%;object-fit:cover}
+.small{font-size:13px;color:#555}
+textarea,input,button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
+button{background:#03A64A;color:#fff;border:none;font-size:15px;cursor:pointer}
+button.red{background:#F21D44}
+</style>
+</head>
+
+<body>
+
+<header>All Users</header>
+
+<div class="container">
+
+<div class="card">
+  <h3>Send Bulk WhatsApp Message</h3>
+  <textarea id="msg" placeholder="Enter message..."></textarea>
+  <input type="file" id="photo">
+  <button onclick="sendBulk()">Send to Selected Users</button>
+</div>
+
+<div class="card">
+  <label>
+    <input type="checkbox" id="selectAll" onchange="toggleAll(this)"> Select All
+  </label>
+</div>
+
+<div class="card" id="userList"></div>
+
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+  authDomain: "balajimere-c8eb9.firebaseapp.com",
+  projectId: "balajimere-c8eb9"
+});
+
+const db = firebase.firestore();
+const IMGBB_KEY="5e77bfe737324a6c147697a13fefcb3d";
+
+let USERS=[];
+
+/* LOAD USERS */
+db.collection("users").onSnapshot(s=>{
+ userList.innerHTML="";
+ USERS=[];
+ s.forEach(d=>{
+  let u=d.data();
+  USERS.push(u);
+  userList.innerHTML+=`
+   <div class="user">
+    <input type="checkbox" class="ucheck" value="${u.mobile}">
+    <img src="${u.photo || 'https://via.placeholder.com/40'}">
+    <div>
+      <b>${u.name||"User"}</b><br>
+      <span class="small">${u.mobile}</span>
+    </div>
+   </div>
+  `;
+ });
+});
+
+/* SELECT ALL */
+function toggleAll(cb){
+ document.querySelectorAll(".ucheck").forEach(c=>{
+  c.checked = cb.checked;
+ });
+}
+
+/* UPLOAD IMAGE */
+async function uploadPhoto(){
+ if(!photo.files[0]) return "";
+ let fd=new FormData();
+ fd.append("image",photo.files[0]);
+ let r=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB_KEY,{
+  method:"POST",body:fd
+ });
+ let j=await r.json();
+ return j.data.url;
+}
+
+/* SEND BULK */
+async function sendBulk(){
+ let text=msg.value.trim();
+ if(!text){alert("Enter message");return;}
+
+ let selected=[...document.querySelectorAll(".ucheck:checked")]
+              .map(c=>c.value);
+
+ if(selected.length==0){
+  alert("Select at least 1 user");
+  return;
+ }
+
+ let imgUrl="";
+ if(photo.files[0]){
+  imgUrl=await uploadPhoto();
+ }
+
+ let finalMsg=text;
+ if(imgUrl) finalMsg += "\n"+imgUrl;
+
+ let i=0;
+ function openNext(){
+  if(i>=selected.length) return;
+  let num=selected[i];
+  window.open("https://wa.me/91"+num+"?text="+encodeURIComponent(finalMsg));
+  i++;
+  setTimeout(openNext,2000);
+ }
+ openNext();
+}
+</script>
+
+</body>
+</html>
