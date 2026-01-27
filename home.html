@@ -159,10 +159,11 @@ header{
  <a href="about.html">About</a>
  <a href="terms.html">Terms & Conditions</a>
  <a href="privacy.html">Privacy</a>
- <a href="social.html">Social</a>
+ <a href="social.html">Social Media</a>
  <a href="home.html" class="close">❌ Close</a>
 </div>
 
+<!-- STATUS BAR -->
 <div class="status-bar" id="statusBar"></div>
 
 <div class="top-tools">
@@ -178,7 +179,7 @@ header{
   <i class="fa-solid fa-box" onclick="location.href='order.html'"></i>
   <i class="fa-solid fa-user" onclick="location.href='login.html'"></i>
   <i class="fa-solid fa-cart-shopping" onclick="location.href='cart.html'"></i>
-  <i class="fa-solid fa-plus" onclick="location.href='post.html'"></i>
+  <i class="fa-solid fa-circle-plus" onclick="location.href='post.html'"></i>
 </div>
 
 <script>
@@ -195,6 +196,32 @@ function toggleMenu(){
  document.getElementById("sideMenu").classList.toggle("show");
 }
 
+/* STATUS LOAD */
+db.collection("status").orderBy("time","desc").onSnapshot(s=>{
+ statusBar.innerHTML="";
+ let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
+ s.forEach(d=>{
+  let st=d.data();
+  let thumb = st.images && st.images[0] ? st.images[0] : "https://via.placeholder.com/60";
+  let isSeen = seen.includes(d.id);
+  statusBar.innerHTML+=`
+   <div class="story ${isSeen?"seen":""}" onclick="openStatus('${d.id}')">
+    <img src="${thumb}">
+    <span>${st.category || "Status"}</span>
+   </div>`;
+ });
+});
+
+function openStatus(id){
+ let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
+ if(!seen.includes(id)){
+   seen.push(id);
+   localStorage.setItem("seenStatus",JSON.stringify(seen));
+ }
+ location.href="status.html?id="+id;
+}
+
+/* PRODUCTS */
 db.collection("products").where("hidden","!=",true).onSnapshot(snap=>{
  ALL=[];
  let cats=new Set();
@@ -269,4 +296,4 @@ function share(name){
 </script>
 
 </body>
-  </html>
+   </html>
