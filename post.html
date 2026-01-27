@@ -26,12 +26,47 @@ input,textarea,button{
 button{background:#03A64A;color:#fff;border:none;font-size:15px}
 
 .post-img{width:100%;border-radius:10px;margin-top:8px}
-.like{color:red;font-size:18px;cursor:pointer}
+
+.actions{display:flex;gap:10px;margin-top:8px;font-size:18px}
+.actions i{cursor:pointer}
+
 .comment-box{display:flex;gap:5px;margin-top:6px}
 .comment-box input{flex:1}
+
 .comment{display:flex;align-items:center;margin-top:5px}
 .comment img{width:30px;height:30px;border-radius:50%;margin-right:6px}
+
 .small{font-size:12px;color:#666}
+
+/* POST MODAL */
+#postBox{
+ position:fixed;
+ bottom:-100%;
+ left:0;
+ width:100%;
+ background:#fff;
+ padding:10px;
+ box-shadow:0 -2px 10px rgba(0,0,0,.3);
+ transition:.3s;
+}
+#postBox.show{bottom:0}
+
+/* FLOAT BUTTON */
+#addBtn{
+ position:fixed;
+ bottom:15px;
+ right:15px;
+ background:#03A64A;
+ color:#fff;
+ width:55px;
+ height:55px;
+ border-radius:50%;
+ font-size:26px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ cursor:pointer;
+}
 </style>
 </head>
 
@@ -39,13 +74,17 @@ button{background:#03A64A;color:#fff;border:none;font-size:15px}
 
 <header>Social Post</header>
 
-<div class="card">
+<div id="postList"></div>
+
+<!-- POST FORM -->
+<div id="postBox">
  <input type="file" id="photo">
  <textarea id="desc" placeholder="Write description..."></textarea>
  <button onclick="uploadPost()">Post</button>
+ <button onclick="closePost()">Cancel</button>
 </div>
 
-<div id="postList"></div>
+<div id="addBtn" onclick="openPost()">+</div>
 
 <script>
 firebase.initializeApp({
@@ -57,11 +96,13 @@ const db=firebase.firestore();
 
 const IMGBB_KEY="5e77bfe737324a6c147697a13fefcb3d";
 
-/* DEMO USER (LOGIN SYSTEM SE AAYEGA) */
 let user = JSON.parse(localStorage.getItem("user")) || {
  name:"Guest User",
  photo:"https://i.pravatar.cc/100"
 };
+
+function openPost(){postBox.classList.add("show")}
+function closePost(){postBox.classList.remove("show")}
 
 /* UPLOAD POST */
 async function uploadPost(){
@@ -73,7 +114,6 @@ async function uploadPost(){
 
  let res=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB_KEY,{method:"POST",body:fd});
  let json=await res.json();
-
  let imgUrl=json.data.url;
 
  await db.collection("posts").add({
@@ -87,6 +127,7 @@ async function uploadPost(){
 
  desc.value="";
  photo.value="";
+ closePost();
 }
 
 /* LOAD POSTS */
@@ -94,7 +135,6 @@ db.collection("posts").orderBy("time","desc").onSnapshot(snap=>{
  postList.innerHTML="";
  snap.forEach(d=>{
   let p=d.data();
-  let liked = p.likes.includes(user.name);
 
   postList.innerHTML+=`
   <div class="card">
@@ -102,12 +142,18 @@ db.collection("posts").orderBy("time","desc").onSnapshot(snap=>{
     <img src="${p.photo}">
     <b>${p.name}</b>
    </div>
+
    <img src="${p.img}" class="post-img">
    <p>${p.desc||""}</p>
 
-   <span class="like" onclick="likePost('${d.id}',${JSON.stringify(p.likes)})">
-    <i class="fa-solid fa-heart"></i> ${p.likes.length}
-   </span>
+   <div class="actions">
+    <i class="fa-solid fa-heart" onclick="likePost('${d.id}',${JSON.stringify(p.likes)})"></i>
+    <i class="fa-solid fa-comment"></i>
+    <i class="fa-solid fa-share" onclick="sharePost('${p.img}')"></i>
+    ${p.name==user.name?`
+    <i class="fa-solid fa-pen" onclick="editPost('${d.id}','${p.desc}')"></i>
+    <i class="fa-solid fa-trash" onclick="deletePost('${d.id}')"></i>`:""}
+   </div>
 
    <div id="cmt${d.id}"></div>
 
@@ -117,7 +163,6 @@ db.collection("posts").orderBy("time","desc").onSnapshot(snap=>{
    </div>
   </div>
   `;
-
   loadComments(d.id);
  });
 });
@@ -160,6 +205,26 @@ function loadComments(id){
    `;
   });
  });
+}
+
+/* SHARE */
+function sharePost(img){
+ window.open("https://wa.me/?text="+encodeURIComponent(img));
+}
+
+/* DELETE */
+function deletePost(id){
+ if(confirm("Delete this post?")){
+  db.collection("posts").doc(id).delete();
+ }
+}
+
+/* EDIT */
+function editPost(id,oldDesc){
+ let n=prompt("Edit description",oldDesc);
+ if(n!==null){
+  db.collection("posts").doc(id).update({desc:n});
+ }
 }
 </script>
 
