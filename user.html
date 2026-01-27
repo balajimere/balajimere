@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Users - Shree Balaji Oil Agency</title>
+<title>User Marketing Panel</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -10,123 +10,157 @@
 
 <style>
 body{margin:0;font-family:Arial;background:#f4f6f8}
-header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20px;font-weight:bold}
-.container{padding:14px}
-.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-.user{border-bottom:1px solid #eee;padding:8px 0;display:flex;align-items:center;gap:8px}
-.user img{width:40px;height:40px;border-radius:50%;object-fit:cover}
-.small{font-size:13px;color:#555}
-textarea,input,button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
-button{background:#03A64A;color:#fff;border:none;font-size:15px;cursor:pointer}
-button.red{background:#F21D44}
+header{background:#03A64A;color:#fff;padding:12px;text-align:center;font-size:18px}
+.card{background:#fff;margin:10px;padding:12px;border-radius:10px}
+textarea,input,select,button{width:100%;padding:8px;margin-top:6px}
+.user{border-bottom:1px solid #ddd;padding:6px}
+.small{font-size:12px;color:#666}
 </style>
 </head>
-
 <body>
 
-<header>All Users</header>
-
-<div class="container">
+<header>📢 Bulk WhatsApp Marketing</header>
 
 <div class="card">
-  <h3>Send Bulk WhatsApp Message</h3>
-  <textarea id="msg" placeholder="Enter message..."></textarea>
-  <input type="file" id="photo">
-  <button onclick="sendBulk()">Send to Selected Users</button>
+<select id="template">
+<option value="">-- Select Template --</option>
+<option>🔥 New Offer Available!</option>
+<option>🛒 Today Discount on Engine Oil</option>
+<option>🚚 Order Dispatch Update</option>
+</select>
+
+<textarea id="msg" placeholder="Enter message"></textarea>
+
+<input type="file" id="photos" multiple>
+
+<select id="appType">
+<option value="wa">WhatsApp</option>
+<option value="wa-biz">WhatsApp Business</option>
+</select>
+
+<input type="datetime-local" id="schedule">
+
+<button onclick="sendBulk()">Send Message</button>
 </div>
 
 <div class="card">
-  <label>
-    <input type="checkbox" id="selectAll" onchange="toggleAll(this)"> Select All
-  </label>
+<label><input type="checkbox" id="onlyActive"> Only Active Users</label>
 </div>
 
-<div class="card" id="userList"></div>
+<div class="card">
+<h4>📂 Import CSV (mobile column required)</h4>
+<input type="file" id="csv" accept=".csv">
+</div>
 
+<div class="card">
+<h4>📋 Manual Numbers</h4>
+<textarea id="manual" placeholder="Enter numbers comma separated"></textarea>
+</div>
+
+<div class="card">
+<h4>👥 Users</h4>
+<div id="users"></div>
+</div>
+
+<div class="card">
+<h4>🕘 Message History</h4>
+<div id="history"></div>
 </div>
 
 <script>
 firebase.initializeApp({
-  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
-  authDomain: "balajimere-c8eb9.firebaseapp.com",
-  projectId: "balajimere-c8eb9"
+ apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain: "balajimere-c8eb9.firebaseapp.com",
+ projectId: "balajimere-c8eb9"
 });
 
-const db = firebase.firestore();
-const IMGBB_KEY="5e77bfe737324a6c147697a13fefcb3d";
+const db=firebase.firestore();
+const IMGBB="5e77bfe737324a6c147697a13fefcb3d";
+let USERNUMBERS=[];
 
-let USERS=[];
-
-/* LOAD USERS */
+/* Load users */
 db.collection("users").onSnapshot(s=>{
- userList.innerHTML="";
- USERS=[];
+ users.innerHTML="";
+ USERNUMBERS=[];
  s.forEach(d=>{
   let u=d.data();
-  USERS.push(u);
-  userList.innerHTML+=`
-   <div class="user">
-    <input type="checkbox" class="ucheck" value="${u.mobile}">
-    <img src="${u.photo || 'https://via.placeholder.com/40'}">
-    <div>
-      <b>${u.name||"User"}</b><br>
-      <span class="small">${u.mobile}</span>
-    </div>
-   </div>
-  `;
+  if(onlyActive.checked && !u.active) return;
+  USERNUMBERS.push(u.mobile);
+  users.innerHTML+=`<div class="user">${u.name||"User"} - ${u.mobile}</div>`;
  });
 });
 
-/* SELECT ALL */
-function toggleAll(cb){
- document.querySelectorAll(".ucheck").forEach(c=>{
-  c.checked = cb.checked;
- });
+/* Template */
+template.onchange=()=>msg.value=template.value;
+
+/* CSV Import */
+csv.onchange=e=>{
+ let file=e.target.files[0];
+ let r=new FileReader();
+ r.onload=()=>{
+  let lines=r.result.split("\n");
+  lines.forEach(l=>{
+   let n=l.split(",")[0];
+   if(n) USERNUMBERS.push(n.trim());
+  });
+ };
+ r.readAsText(file);
 }
 
-/* UPLOAD IMAGE */
-async function uploadPhoto(){
- if(!photo.files[0]) return "";
- let fd=new FormData();
- fd.append("image",photo.files[0]);
- let r=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB_KEY,{
-  method:"POST",body:fd
- });
- let j=await r.json();
- return j.data.url;
+/* Upload images */
+async function uploadImages(){
+ let urls=[];
+ for(let f of photos.files){
+  let fd=new FormData();
+  fd.append("image",f);
+  let r=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB,{method:"POST",body:fd});
+  let j=await r.json();
+  urls.push(j.data.url);
+ }
+ return urls;
 }
 
-/* SEND BULK */
+/* Send */
 async function sendBulk(){
- let text=msg.value.trim();
- if(!text){alert("Enter message");return;}
+ let text=msg.value;
+ let nums=[...USERNUMBERS];
 
- let selected=[...document.querySelectorAll(".ucheck:checked")]
-              .map(c=>c.value);
-
- if(selected.length==0){
-  alert("Select at least 1 user");
-  return;
+ if(manual.value){
+  manual.value.split(",").forEach(n=>nums.push(n.trim()));
  }
 
- let imgUrl="";
- if(photo.files[0]){
-  imgUrl=await uploadPhoto();
- }
+ if(nums.length==0) return alert("No users");
 
- let finalMsg=text;
- if(imgUrl) finalMsg += "\n"+imgUrl;
+ let imgUrls=await uploadImages();
+ let fullMsg=text+"\n"+imgUrls.join("\n");
 
- let i=0;
- function openNext(){
-  if(i>=selected.length) return;
-  let num=selected[i];
-  window.open("https://wa.me/91"+num+"?text="+encodeURIComponent(finalMsg));
-  i++;
-  setTimeout(openNext,2000);
- }
- openNext();
+ let when=schedule.value?new Date(schedule.value).getTime()-Date.now():0;
+
+ setTimeout(()=>{
+  nums.forEach((n,i)=>{
+   let link=(appType.value=="wa-biz"?"https://wa.me/":"https://wa.me/");
+   window.open(link+"91"+n+"?text="+encodeURIComponent(fullMsg));
+  });
+  saveHistory(text,nums.length);
+ },when);
 }
+
+/* History */
+function saveHistory(msg,count){
+ let h=JSON.parse(localStorage.getItem("history")||"[]");
+ h.unshift({msg,count,time:new Date().toLocaleString()});
+ localStorage.setItem("history",JSON.stringify(h));
+ renderHistory();
+}
+
+function renderHistory(){
+ let h=JSON.parse(localStorage.getItem("history")||"[]");
+ history.innerHTML="";
+ h.forEach(x=>{
+  history.innerHTML+=`<div class="small">${x.time} → ${x.msg} (${x.count})</div>`;
+ });
+}
+renderHistory();
 </script>
 
 </body>
