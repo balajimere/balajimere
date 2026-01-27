@@ -13,7 +13,7 @@ body{margin:0;font-family:Arial;background:#f4f6f8}
 header{background:#03A64A;color:#fff;padding:12px;text-align:center;font-size:18px}
 .card{background:#fff;margin:10px;padding:12px;border-radius:10px}
 textarea,input,select,button{width:100%;padding:8px;margin-top:6px}
-.user{border-bottom:1px solid #ddd;padding:6px}
+.user{border-bottom:1px solid #ddd;padding:6px;display:flex;align-items:center;gap:6px}
 .small{font-size:12px;color:#666}
 </style>
 </head>
@@ -40,7 +40,8 @@ textarea,input,select,button{width:100%;padding:8px;margin-top:6px}
 
 <input type="datetime-local" id="schedule">
 
-<button onclick="sendBulk()">Send Message</button>
+<button onclick="sendNow()">Send Now (Direct)</button>
+<button onclick="autoSend()">Auto Send (One by One)</button>
 </div>
 
 <div class="card">
@@ -48,13 +49,8 @@ textarea,input,select,button{width:100%;padding:8px;margin-top:6px}
 </div>
 
 <div class="card">
-<h4>📂 Import CSV (mobile column required)</h4>
+<h4>📂 Import CSV (name,number)</h4>
 <input type="file" id="csv" accept=".csv">
-</div>
-
-<div class="card">
-<h4>📋 Manual Numbers</h4>
-<textarea id="manual" placeholder="Enter numbers comma separated"></textarea>
 </div>
 
 <div class="card">
@@ -76,19 +72,33 @@ firebase.initializeApp({
 
 const db=firebase.firestore();
 const IMGBB="5e77bfe737324a6c147697a13fefcb3d";
-let USERNUMBERS=[];
+let USERLIST=[];
 
-/* Load users */
+/* Load Firebase users */
 db.collection("users").onSnapshot(s=>{
- users.innerHTML="";
- USERNUMBERS=[];
+ renderUsers([]);
  s.forEach(d=>{
   let u=d.data();
   if(onlyActive.checked && !u.active) return;
-  USERNUMBERS.push(u.mobile);
-  users.innerHTML+=`<div class="user">${u.name||"User"} - ${u.mobile}</div>`;
+  USERLIST.push({name:u.name||"User",mobile:u.mobile});
  });
+ renderUsers(USERLIST);
 });
+
+/* Render users */
+function renderUsers(list){
+ users.innerHTML="";
+ list.forEach((u,i)=>{
+  users.innerHTML+=`
+   <div class="user">
+    <input type="checkbox" class="ucheck" value="${u.mobile}">
+    <div>
+      <b>${u.name}</b><br>
+      <span class="small">${u.mobile}</span>
+    </div>
+   </div>`;
+ });
+}
 
 /* Template */
 template.onchange=()=>msg.value=template.value;
@@ -99,10 +109,15 @@ csv.onchange=e=>{
  let r=new FileReader();
  r.onload=()=>{
   let lines=r.result.split("\n");
+  let csvUsers=[];
   lines.forEach(l=>{
-   let n=l.split(",")[0];
-   if(n) USERNUMBERS.push(n.trim());
+   let p=l.split(",");
+   if(p[1]){
+    csvUsers.push({name:p[0],mobile:p[1].trim()});
+   }
   });
+  USERLIST=USERLIST.concat(csvUsers);
+  renderUsers(USERLIST);
  };
  r.readAsText(file);
 }
@@ -120,27 +135,47 @@ async function uploadImages(){
  return urls;
 }
 
-/* Send */
-async function sendBulk(){
+/* Selected numbers */
+function getSelected(){
+ return [...document.querySelectorAll(".ucheck:checked")].map(c=>c.value);
+}
+
+/* Send Now */
+async function sendNow(){
+ let nums=getSelected();
+ if(nums.length==0) return alert("Select users");
+
  let text=msg.value;
- let nums=[...USERNUMBERS];
+ let imgUrls=await uploadImages();
+ let fullMsg=text+"\n"+imgUrls.join("\n");
 
- if(manual.value){
-  manual.value.split(",").forEach(n=>nums.push(n.trim()));
- }
+ nums.forEach(n=>{
+  window.open("https://wa.me/91"+n+"?text="+encodeURIComponent(fullMsg));
+ });
 
- if(nums.length==0) return alert("No users");
+ saveHistory(text,nums.length);
+}
 
+/* Auto Send */
+async function autoSend(){
+ let nums=getSelected();
+ if(nums.length==0) return alert("Select users");
+
+ let text=msg.value;
  let imgUrls=await uploadImages();
  let fullMsg=text+"\n"+imgUrls.join("\n");
 
  let when=schedule.value?new Date(schedule.value).getTime()-Date.now():0;
 
  setTimeout(()=>{
-  nums.forEach((n,i)=>{
-   let link=(appType.value=="wa-biz"?"https://wa.me/":"https://wa.me/");
-   window.open(link+"91"+n+"?text="+encodeURIComponent(fullMsg));
-  });
+  let i=0;
+  function next(){
+   if(i>=nums.length) return;
+   window.open("https://wa.me/91"+nums[i]+"?text="+encodeURIComponent(fullMsg));
+   i++;
+   setTimeout(next,2000);
+  }
+  next();
   saveHistory(text,nums.length);
  },when);
 }
@@ -164,4 +199,4 @@ renderHistory();
 </script>
 
 </body>
-</html>
+ </html>
