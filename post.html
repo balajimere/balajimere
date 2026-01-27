@@ -13,20 +13,53 @@
 <style>
 body{margin:0;font-family:Arial;background:#f2f2f2}
 header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20px}
+
+.story-bar{display:flex;overflow-x:auto;background:#fff;padding:8px}
+.story{text-align:center;margin-right:10px}
+.story img{width:60px;height:60px;border-radius:50%;border:3px solid green}
+
 .card{background:#fff;margin:10px;border-radius:10px;padding:10px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-input,textarea,button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
-button{background:#03A64A;color:#fff;border:none;font-size:15px}
+
 .post-img{width:100%;border-radius:10px;margin-top:8px}
+
 .actions{display:flex;justify-content:space-around;margin-top:10px;font-size:20px}
 .actions i{cursor:pointer}
+
 .comment{display:flex;align-items:center;margin-top:5px}
 .comment img{width:30px;height:30px;border-radius:50%;margin-right:6px}
-#storyBar{display:flex;overflow-x:auto;background:#fff;padding:10px}
-.story{margin-right:10px;text-align:center}
-.story img{width:60px;height:60px;border-radius:50%;border:3px solid green}
-#addBtn{position:fixed;bottom:15px;right:15px;background:#03A64A;color:#fff;width:55px;height:55px;border-radius:50%;font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-#postBox{position:fixed;bottom:-100%;left:0;width:100%;background:#fff;padding:10px;transition:.3s}
-#postBox.show{bottom:0}
+
+.comment-box input{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;margin-top:6px}
+
+/* POST MODAL */
+#postBox,#storyBox{
+ position:fixed;
+ bottom:-100%;
+ left:0;
+ width:100%;
+ background:#fff;
+ padding:10px;
+ box-shadow:0 -2px 10px rgba(0,0,0,.3);
+ transition:.3s;
+}
+#postBox.show,#storyBox.show{bottom:0}
+
+/* FLOAT BUTTON */
+#addBtn,#storyBtn{
+ position:fixed;
+ bottom:15px;
+ background:#03A64A;
+ color:#fff;
+ width:55px;
+ height:55px;
+ border-radius:50%;
+ font-size:26px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ cursor:pointer;
+}
+#addBtn{right:15px}
+#storyBtn{left:15px}
 </style>
 </head>
 
@@ -34,131 +67,189 @@ button{background:#03A64A;color:#fff;border:none;font-size:15px}
 
 <header>Social Post</header>
 
-<div id="storyBar"></div>
+<div class="story-bar" id="storyBar"></div>
+
 <div id="postList"></div>
 
+<!-- POST FORM -->
 <div id="postBox">
-<input type="file" id="photo">
-<textarea id="desc" placeholder="Write description..."></textarea>
-<button onclick="uploadPost()">Post</button>
-<button onclick="uploadStory()">Add Story</button>
-<button onclick="closePost()">Cancel</button>
+ <input type="file" id="photo">
+ <textarea id="desc" placeholder="Write description..."></textarea>
+ <button onclick="uploadPost()">Post</button>
+ <button onclick="closePost()">Cancel</button>
+</div>
+
+<!-- STORY FORM -->
+<div id="storyBox">
+ <input type="file" id="storyImg">
+ <button onclick="uploadStory()">Add Story</button>
+ <button onclick="closeStory()">Cancel</button>
 </div>
 
 <div id="addBtn" onclick="openPost()">+</div>
+<div id="storyBtn" onclick="openStory()">📸</div>
 
 <script>
 firebase.initializeApp({
- apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
- authDomain:"balajimere-c8eb9.firebaseapp.com",
- projectId:"balajimere-c8eb9"
+  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+  authDomain: "balajimere-c8eb9.firebaseapp.com",
+  projectId: "balajimere-c8eb9"
 });
 const db=firebase.firestore();
 const IMGBB_KEY="5e77bfe737324a6c147697a13fefcb3d";
 
-let user=JSON.parse(localStorage.getItem("user"));
-if(!user){alert("Login required");throw "no login";}
+/* LOGIN CHECK */
+let user = JSON.parse(localStorage.getItem("user"));
+if(!user){ location.href="login.html"; }
 
 function openPost(){postBox.classList.add("show")}
 function closePost(){postBox.classList.remove("show")}
+function openStory(){storyBox.classList.add("show")}
+function closeStory(){storyBox.classList.remove("show")}
 
-/* FOLLOW SYSTEM */
-function follow(uid){
- db.collection("follows").add({from:user.uid,to:uid});
-}
-function unfollow(uid){
- db.collection("follows").where("from","==",user.uid).where("to","==",uid)
- .get().then(q=>q.forEach(d=>d.ref.delete()));
+/* FOLLOW USER */
+function followUser(uid){
+ db.collection("users").doc(user.mobile).update({
+  following: firebase.firestore.FieldValue.arrayUnion(uid)
+ });
+ alert("Followed");
 }
 
-/* UPLOAD IMAGE */
-async function uploadImg(file){
+/* UPLOAD STORY */
+async function uploadStory(){
+ let f=document.getElementById("storyImg").files[0];
+ if(!f) return alert("Select story image");
+
  let fd=new FormData();
- fd.append("image",file);
+ fd.append("image",f);
  let r=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB_KEY,{method:"POST",body:fd});
  let j=await r.json();
- return j.data.url;
-}
 
-/* POST */
-async function uploadPost(){
- let f=photo.files[0]; if(!f) return alert("Select photo");
- let url=await uploadImg(f);
- await db.collection("posts").add({
-  img:url,desc:desc.value,name:user.name,photo:user.photo,uid:user.uid,likes:[],time:new Date()
- });
- closePost();
-}
-
-/* STORY */
-async function uploadStory(){
- let f=photo.files[0]; if(!f) return alert("Select photo");
- let url=await uploadImg(f);
  await db.collection("stories").add({
-  img:url,name:user.name,photo:user.photo,uid:user.uid,time:new Date()
+  uid:user.mobile,
+  name:user.name,
+  photo:user.photo,
+  image:j.data.url,
+  time:new Date()
  });
- closePost();
+ closeStory();
 }
-
-/* AUTO DELETE STORY 24H */
-setInterval(()=>{
- let t=new Date(Date.now()-24*60*60*1000);
- db.collection("stories").where("time","<",t).get()
- .then(q=>q.forEach(d=>d.ref.delete()));
-},60000);
 
 /* LOAD STORIES */
-db.collection("follows").where("from","==",user.uid).onSnapshot(f=>{
- let ids=[];
- f.forEach(d=>ids.push(d.data().to));
+db.collection("users").doc(user.mobile).onSnapshot(u=>{
+ let following=u.data().following||[];
+
  db.collection("stories").onSnapshot(s=>{
   storyBar.innerHTML="";
+  let now=Date.now();
+
   s.forEach(d=>{
    let st=d.data();
-   if(ids.includes(st.uid)||st.uid==user.uid){
+   let t=st.time.toDate().getTime();
+
+   if(now-t>86400000){ db.collection("stories").doc(d.id).delete(); return;}
+
+   if(st.uid==user.mobile || following.includes(st.uid)){
     storyBar.innerHTML+=`
-    <div class="story">
-     <img src="${st.img}">
-     <div>${st.name}</div>
-     ${st.uid==user.uid?`<button onclick="deleteStory('${d.id}')">X</button>`:""}
-    </div>`;
+     <div class="story">
+      <img src="${st.image}" onclick="window.open('${st.image}')">
+      <div>${st.name}</div>
+     </div>`;
    }
   });
  });
 });
 
-function deleteStory(id){db.collection("stories").doc(id).delete();}
+/* UPLOAD POST */
+async function uploadPost(){
+ let file=document.getElementById("photo").files[0];
+ if(!file) return alert("Select photo");
 
-/* POSTS */
-db.collection("posts").orderBy("time","desc").onSnapshot(s=>{
+ let fd=new FormData();
+ fd.append("image",file);
+ let res=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB_KEY,{method:"POST",body:fd});
+ let json=await res.json();
+
+ await db.collection("posts").add({
+  uid:user.mobile,
+  img:json.data.url,
+  desc:desc.value,
+  name:user.name,
+  photo:user.photo,
+  likes:[],
+  time:new Date()
+ });
+ desc.value=""; photo.value=""; closePost();
+}
+
+/* LOAD POSTS */
+db.collection("posts").orderBy("time","desc").onSnapshot(snap=>{
  postList.innerHTML="";
- s.forEach(d=>{
+ snap.forEach(d=>{
   let p=d.data();
+  let likes=p.likes||[];
+  let liked=likes.includes(user.mobile);
+
   postList.innerHTML+=`
   <div class="card">
    <div class="comment">
     <img src="${p.photo}">
     <b>${p.name}</b>
-    ${p.uid!=user.uid?`<button onclick="follow('${p.uid}')">Follow</button>`:""}
+    ${p.uid!=user.mobile?`<button onclick="followUser('${p.uid}')">Follow</button>`:""}
    </div>
+
    <img src="${p.img}" class="post-img">
-   <p>${p.desc}</p>
+   <p>${p.desc||""}</p>
+
    <div class="actions">
-    <i class="fa-solid fa-heart" onclick="likePost('${d.id}',${JSON.stringify(p.likes)})"></i>
+    <i class="fa-solid fa-heart" style="color:${liked?'red':'black'}"
+     onclick="likePost('${d.id}',${JSON.stringify(likes)})"></i>
     <i class="fa-solid fa-comment"></i>
+    <i class="fa-solid fa-share" onclick="sharePost('${p.img}')"></i>
+   </div>
+
+   <div id="cmt${d.id}"></div>
+
+   <div class="comment-box">
+    <input id="ci${d.id}" placeholder="Write comment & Enter"
+      onkeydown="if(event.key==='Enter') addComment('${d.id}')">
    </div>
   </div>`;
+  loadComments(d.id);
  });
 });
 
 /* LIKE */
 function likePost(id,likes){
- if(likes.includes(user.uid)){
-  likes=likes.filter(x=>x!=user.uid);
- }else{likes.push(user.uid);}
- db.collection("posts").doc(id).update({likes:likes});
+ if(likes.includes(user.mobile)){
+  likes=likes.filter(l=>l!==user.mobile);
+ }else{likes.push(user.mobile);}
+ db.collection("posts").doc(id).update({likes});
+}
+
+/* COMMENTS */
+function addComment(id){
+ let i=document.getElementById("ci"+id);
+ let txt=i.value.trim(); if(!txt)return;
+ db.collection("posts").doc(id).collection("comments").add({
+  uid:user.mobile,text:txt,name:user.name,photo:user.photo,time:new Date()
+ });
+ i.value="";
+}
+function loadComments(id){
+ db.collection("posts").doc(id).collection("comments").orderBy("time").onSnapshot(s=>{
+  let box=document.getElementById("cmt"+id); box.innerHTML="";
+  s.forEach(d=>{
+   let c=d.data();
+   box.innerHTML+=`<div class="comment"><img src="${c.photo}"><b>${c.name}</b>: ${c.text}</div>`;
+  });
+ });
+}
+
+/* SHARE */
+function sharePost(img){
+ window.open("https://wa.me/?text="+encodeURIComponent(img));
 }
 </script>
-
 </body>
 </html>
