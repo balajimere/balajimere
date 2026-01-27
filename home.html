@@ -5,12 +5,10 @@
 <title>Shree Balaji Oil Agency</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<!-- Icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
@@ -19,7 +17,7 @@ body{margin:0;font-family:Arial;background:#f7f7f7;overflow-x:hidden}
 
 /* HEADER */
 header{
- background:var(--green);
+ background:linear-gradient(90deg,#03A64A,#028a3f);
  color:#fff;
  padding:14px;
  font-size:24px;
@@ -32,7 +30,7 @@ header{
  font-family:cursive;
 }
 
-/* MENU BUTTON IN HEADER */
+/* MENU BUTTON */
 .menu-btn{
  position:absolute;
  left:12px;
@@ -42,7 +40,7 @@ header{
 }
 
 /* STATUS BAR */
-.status-bar{display:flex;overflow-x:auto;padding:10px;background:#fff;scroll-behavior:smooth}
+.status-bar{display:flex;overflow-x:auto;padding:10px;background:#fff}
 .story{min-width:70px;text-align:center;margin-right:10px;cursor:pointer}
 .story img{width:60px;height:60px;border-radius:50%;border:3px solid #03A64A;object-fit:cover}
 .story.seen img{border-color:#999}
@@ -54,7 +52,7 @@ header{
 
 .category{padding:10px;font-size:18px;font-weight:bold;color:#333}
 
-/* PRODUCTS (FORCE 2 PER ROW) */
+/* PRODUCTS */
 .products{
  padding:12px;
  display:grid;
@@ -65,7 +63,27 @@ header{
  box-sizing:border-box;
 }
 
-.card{background:#fff;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.1);overflow:hidden}
+.card{
+ background:#fff;
+ border-radius:12px;
+ box-shadow:0 4px 12px rgba(0,0,0,.12);
+ overflow:hidden;
+ position:relative
+}
+
+/* OFFER BADGE */
+.offer-badge{
+ position:absolute;
+ top:8px;
+ left:8px;
+ background:red;
+ color:#fff;
+ font-size:12px;
+ padding:4px 8px;
+ border-radius:6px;
+ z-index:2;
+ font-weight:bold
+}
 
 .slider{position:relative;overflow:hidden}
 .slider-track{display:flex;transition:.4s}
@@ -81,10 +99,21 @@ header{
 .share{background:#555}
 
 /* BOTTOM NAV */
-.bottom-nav{position:fixed;bottom:0;left:0;width:100%;background:#fff;border-top:1px solid #ddd;display:flex;justify-content:space-around;padding:8px 0;z-index:10}
+.bottom-nav{
+ position:fixed;
+ bottom:0;
+ left:0;
+ width:100%;
+ background:#fff;
+ border-top:1px solid #ddd;
+ display:flex;
+ justify-content:space-around;
+ padding:8px 0;
+ z-index:10
+}
 .bottom-nav i{font-size:22px;color:var(--green)}
 
-/* SIDE MENU (FULLY HIDDEN FIX) */
+/* SIDE MENU */
 .side-menu{
  position:fixed;
  top:0;
@@ -130,13 +159,12 @@ header{
  <a href="about.html">About</a>
  <a href="terms.html">Terms & Conditions</a>
  <a href="privacy.html">Privacy</a>
+ <a href="social.html">Social</a>
  <a href="home.html" class="close">❌ Close</a>
 </div>
 
-<!-- STATUS BAR -->
 <div class="status-bar" id="statusBar"></div>
 
-<!-- SEARCH + CATEGORY FILTER -->
 <div class="top-tools">
  <input type="text" id="searchBox" placeholder="Search product..." oninput="render()">
  <select id="catFilter" onchange="render()">
@@ -150,6 +178,7 @@ header{
   <i class="fa-solid fa-box" onclick="location.href='order.html'"></i>
   <i class="fa-solid fa-user" onclick="location.href='login.html'"></i>
   <i class="fa-solid fa-cart-shopping" onclick="location.href='cart.html'"></i>
+  <i class="fa-solid fa-plus" onclick="location.href='post.html'"></i>
 </div>
 
 <script>
@@ -166,34 +195,15 @@ function toggleMenu(){
  document.getElementById("sideMenu").classList.toggle("show");
 }
 
-/* STATUS LOAD */
-db.collection("status").orderBy("time","desc").onSnapshot(s=>{
- statusBar.innerHTML="";
- let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
- s.forEach(d=>{
-  let st=d.data();
-  let thumb = st.images && st.images[0] ? st.images[0] : "https://via.placeholder.com/60";
-  let isSeen = seen.includes(d.id);
-  statusBar.innerHTML+=`
-   <div class="story ${isSeen?"seen":""}" onclick="openStatus('${d.id}')">
-    <img src="${thumb}">
-    <span>${st.category || "Status"}</span>
-   </div>`;
- });
-});
-
-function openStatus(id){
- let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
- if(!seen.includes(id)){seen.push(id);localStorage.setItem("seenStatus",JSON.stringify(seen));}
- location.href="status.html?id="+id;
-}
-
-function isLogin(){return localStorage.getItem("user");}
-
-/* PRODUCTS */
 db.collection("products").where("hidden","!=",true).onSnapshot(snap=>{
- ALL=[];let cats=new Set();
- snap.forEach(d=>{let p=d.data();p.id=d.id;ALL.push(p);cats.add(p.category||"Other");});
+ ALL=[];
+ let cats=new Set();
+ snap.forEach(d=>{
+  let p=d.data();
+  p.id=d.id;
+  ALL.push(p);
+  cats.add(p.category||"Other");
+ });
  catFilter.innerHTML='<option value="">All Categories</option>';
  cats.forEach(c=>catFilter.innerHTML+=`<option>${c}</option>`);
  render();
@@ -204,9 +214,18 @@ function render(){
  list.innerHTML="";
  let search=searchBox.value.toLowerCase();
  let cat=catFilter.value;
+
  let data=ALL.filter(p=>(!cat||p.category==cat)&&p.name.toLowerCase().includes(search));
+
+ data.sort((a,b)=> (b.pinned===true)-(a.pinned===true));
+
  let group={};
- data.forEach(p=>{let c=p.category||"Other";if(!group[c])group[c]=[];group[c].push(p);});
+ data.forEach(p=>{
+  let c=p.category||"Other";
+  if(!group[c])group[c]=[];
+  group[c].push(p);
+ });
+
  Object.keys(group).forEach(cat=>{
   list.innerHTML+=`<div class="category">${cat}</div><div class="products">`;
   group[cat].forEach(p=>{
@@ -214,6 +233,7 @@ function render(){
    let slides=imgs.map(i=>`<img src="${i}" onclick="view('${p.id}')">`).join("");
    list.innerHTML+=`
    <div class="card">
+    ${p.pinned?'<div class="offer-badge">OFFER</div>':""}
     <div class="slider"><div class="slider-track">${slides}</div></div>
     <div class="info">
      <b>${p.name}</b><br>
@@ -231,6 +251,8 @@ function render(){
 }
 
 function view(id){location.href="view-product.html?id="+id;}
+function isLogin(){return localStorage.getItem("user");}
+
 function addCart(p){
  if(!isLogin()) return location.href="login.html";
  let q=prompt("Quantity?");
