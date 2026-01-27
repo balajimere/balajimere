@@ -13,60 +13,20 @@
 <style>
 body{margin:0;font-family:Arial;background:#f2f2f2}
 header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20px}
-
 .card{background:#fff;margin:10px;border-radius:10px;padding:10px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-
-input,textarea,button{
- width:100%;
- padding:10px;
- margin-top:8px;
- border-radius:6px;
- border:1px solid #ccc
-}
+input,textarea,button{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #ccc}
 button{background:#03A64A;color:#fff;border:none;font-size:15px}
-
 .post-img{width:100%;border-radius:10px;margin-top:8px}
-
-.actions{display:flex;gap:10px;margin-top:8px;font-size:18px}
+.actions{display:flex;justify-content:space-around;margin-top:10px;font-size:20px}
 .actions i{cursor:pointer}
-
-.comment-box{display:flex;gap:5px;margin-top:6px}
-.comment-box input{flex:1}
-
 .comment{display:flex;align-items:center;margin-top:5px}
 .comment img{width:30px;height:30px;border-radius:50%;margin-right:6px}
-
-.small{font-size:12px;color:#666}
-
-/* POST MODAL */
-#postBox{
- position:fixed;
- bottom:-100%;
- left:0;
- width:100%;
- background:#fff;
- padding:10px;
- box-shadow:0 -2px 10px rgba(0,0,0,.3);
- transition:.3s;
-}
+#storyBar{display:flex;overflow-x:auto;background:#fff;padding:10px}
+.story{margin-right:10px;text-align:center}
+.story img{width:60px;height:60px;border-radius:50%;border:3px solid green}
+#addBtn{position:fixed;bottom:15px;right:15px;background:#03A64A;color:#fff;width:55px;height:55px;border-radius:50%;font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+#postBox{position:fixed;bottom:-100%;left:0;width:100%;background:#fff;padding:10px;transition:.3s}
 #postBox.show{bottom:0}
-
-/* FLOAT BUTTON */
-#addBtn{
- position:fixed;
- bottom:15px;
- right:15px;
- background:#03A64A;
- color:#fff;
- width:55px;
- height:55px;
- border-radius:50%;
- font-size:26px;
- display:flex;
- align-items:center;
- justify-content:center;
- cursor:pointer;
-}
 </style>
 </head>
 
@@ -74,157 +34,129 @@ button{background:#03A64A;color:#fff;border:none;font-size:15px}
 
 <header>Social Post</header>
 
+<div id="storyBar"></div>
 <div id="postList"></div>
 
-<!-- POST FORM -->
 <div id="postBox">
- <input type="file" id="photo">
- <textarea id="desc" placeholder="Write description..."></textarea>
- <button onclick="uploadPost()">Post</button>
- <button onclick="closePost()">Cancel</button>
+<input type="file" id="photo">
+<textarea id="desc" placeholder="Write description..."></textarea>
+<button onclick="uploadPost()">Post</button>
+<button onclick="uploadStory()">Add Story</button>
+<button onclick="closePost()">Cancel</button>
 </div>
 
 <div id="addBtn" onclick="openPost()">+</div>
 
 <script>
 firebase.initializeApp({
-  apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
-  authDomain: "balajimere-c8eb9.firebaseapp.com",
-  projectId: "balajimere-c8eb9"
+ apiKey:"AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain:"balajimere-c8eb9.firebaseapp.com",
+ projectId:"balajimere-c8eb9"
 });
 const db=firebase.firestore();
-
 const IMGBB_KEY="5e77bfe737324a6c147697a13fefcb3d";
 
-let user = JSON.parse(localStorage.getItem("user")) || {
- name:"Guest User",
- photo:"https://i.pravatar.cc/100"
-};
+let user=JSON.parse(localStorage.getItem("user"));
+if(!user){alert("Login required");throw "no login";}
 
 function openPost(){postBox.classList.add("show")}
 function closePost(){postBox.classList.remove("show")}
 
-/* UPLOAD POST */
-async function uploadPost(){
- let file=document.getElementById("photo").files[0];
- if(!file) return alert("Select photo");
+/* FOLLOW SYSTEM */
+function follow(uid){
+ db.collection("follows").add({from:user.uid,to:uid});
+}
+function unfollow(uid){
+ db.collection("follows").where("from","==",user.uid).where("to","==",uid)
+ .get().then(q=>q.forEach(d=>d.ref.delete()));
+}
 
+/* UPLOAD IMAGE */
+async function uploadImg(file){
  let fd=new FormData();
  fd.append("image",file);
+ let r=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB_KEY,{method:"POST",body:fd});
+ let j=await r.json();
+ return j.data.url;
+}
 
- let res=await fetch("https://api.imgbb.com/1/upload?key="+IMGBB_KEY,{method:"POST",body:fd});
- let json=await res.json();
- let imgUrl=json.data.url;
-
+/* POST */
+async function uploadPost(){
+ let f=photo.files[0]; if(!f) return alert("Select photo");
+ let url=await uploadImg(f);
  await db.collection("posts").add({
-  img:imgUrl,
-  desc:desc.value,
-  name:user.name,
-  photo:user.photo,
-  likes:[],
-  time:new Date()
+  img:url,desc:desc.value,name:user.name,photo:user.photo,uid:user.uid,likes:[],time:new Date()
  });
-
- desc.value="";
- photo.value="";
  closePost();
 }
 
-/* LOAD POSTS */
-db.collection("posts").orderBy("time","desc").onSnapshot(snap=>{
- postList.innerHTML="";
- snap.forEach(d=>{
-  let p=d.data();
+/* STORY */
+async function uploadStory(){
+ let f=photo.files[0]; if(!f) return alert("Select photo");
+ let url=await uploadImg(f);
+ await db.collection("stories").add({
+  img:url,name:user.name,photo:user.photo,uid:user.uid,time:new Date()
+ });
+ closePost();
+}
 
+/* AUTO DELETE STORY 24H */
+setInterval(()=>{
+ let t=new Date(Date.now()-24*60*60*1000);
+ db.collection("stories").where("time","<",t).get()
+ .then(q=>q.forEach(d=>d.ref.delete()));
+},60000);
+
+/* LOAD STORIES */
+db.collection("follows").where("from","==",user.uid).onSnapshot(f=>{
+ let ids=[];
+ f.forEach(d=>ids.push(d.data().to));
+ db.collection("stories").onSnapshot(s=>{
+  storyBar.innerHTML="";
+  s.forEach(d=>{
+   let st=d.data();
+   if(ids.includes(st.uid)||st.uid==user.uid){
+    storyBar.innerHTML+=`
+    <div class="story">
+     <img src="${st.img}">
+     <div>${st.name}</div>
+     ${st.uid==user.uid?`<button onclick="deleteStory('${d.id}')">X</button>`:""}
+    </div>`;
+   }
+  });
+ });
+});
+
+function deleteStory(id){db.collection("stories").doc(id).delete();}
+
+/* POSTS */
+db.collection("posts").orderBy("time","desc").onSnapshot(s=>{
+ postList.innerHTML="";
+ s.forEach(d=>{
+  let p=d.data();
   postList.innerHTML+=`
   <div class="card">
    <div class="comment">
     <img src="${p.photo}">
     <b>${p.name}</b>
+    ${p.uid!=user.uid?`<button onclick="follow('${p.uid}')">Follow</button>`:""}
    </div>
-
    <img src="${p.img}" class="post-img">
-   <p>${p.desc||""}</p>
-
+   <p>${p.desc}</p>
    <div class="actions">
     <i class="fa-solid fa-heart" onclick="likePost('${d.id}',${JSON.stringify(p.likes)})"></i>
     <i class="fa-solid fa-comment"></i>
-    <i class="fa-solid fa-share" onclick="sharePost('${p.img}')"></i>
-    ${p.name==user.name?`
-    <i class="fa-solid fa-pen" onclick="editPost('${d.id}','${p.desc}')"></i>
-    <i class="fa-solid fa-trash" onclick="deletePost('${d.id}')"></i>`:""}
    </div>
-
-   <div id="cmt${d.id}"></div>
-
-   <div class="comment-box">
-    <input id="ci${d.id}" placeholder="Write comment...">
-    <button onclick="addComment('${d.id}')">Send</button>
-   </div>
-  </div>
-  `;
-  loadComments(d.id);
+  </div>`;
  });
 });
 
 /* LIKE */
 function likePost(id,likes){
- if(likes.includes(user.name)){
-  likes=likes.filter(l=>l!=user.name);
- }else{
-  likes.push(user.name);
- }
+ if(likes.includes(user.uid)){
+  likes=likes.filter(x=>x!=user.uid);
+ }else{likes.push(user.uid);}
  db.collection("posts").doc(id).update({likes:likes});
-}
-
-/* COMMENTS */
-function addComment(id){
- let txt=document.getElementById("ci"+id).value;
- if(!txt) return;
-
- db.collection("posts").doc(id).collection("comments").add({
-  text:txt,
-  name:user.name,
-  photo:user.photo,
-  time:new Date()
- });
- document.getElementById("ci"+id).value="";
-}
-
-function loadComments(id){
- db.collection("posts").doc(id).collection("comments").orderBy("time").onSnapshot(s=>{
-  let box=document.getElementById("cmt"+id);
-  box.innerHTML="";
-  s.forEach(d=>{
-   let c=d.data();
-   box.innerHTML+=`
-    <div class="comment">
-     <img src="${c.photo}">
-     <b>${c.name}</b> : ${c.text}
-    </div>
-   `;
-  });
- });
-}
-
-/* SHARE */
-function sharePost(img){
- window.open("https://wa.me/?text="+encodeURIComponent(img));
-}
-
-/* DELETE */
-function deletePost(id){
- if(confirm("Delete this post?")){
-  db.collection("posts").doc(id).delete();
- }
-}
-
-/* EDIT */
-function editPost(id,oldDesc){
- let n=prompt("Edit description",oldDesc);
- if(n!==null){
-  db.collection("posts").doc(id).update({desc:n});
- }
 }
 </script>
 
