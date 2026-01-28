@@ -20,10 +20,42 @@ header{background:var(--green);color:#fff;padding:14px;text-align:center;font-si
 button{width:100%;padding:12px;margin-top:15px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:15px;cursor:pointer}
 .logout{background:#F21D44}
 
-.post-card{background:#fff;margin:15px;padding:10px;border-radius:10px}
-.post-card img{width:100%;border-radius:8px}
-
 .list{background:#fff;margin:15px;padding:10px;border-radius:10px}
+
+/* INSTAGRAM STYLE GRID */
+#myPosts{
+ display:grid;
+ grid-template-columns:repeat(3,1fr);
+ gap:5px;
+ margin:10px;
+}
+.post-card{
+ background:#fff;
+ border-radius:6px;
+ overflow:hidden;
+ position:relative;
+}
+.post-card img{
+ width:100%;
+ height:120px;
+ object-fit:cover;
+}
+.post-actions{
+ position:absolute;
+ bottom:0;
+ left:0;
+ right:0;
+ background:rgba(0,0,0,.6);
+ display:flex;
+ justify-content:space-around;
+}
+.post-actions button{
+ background:none;
+ border:none;
+ color:#fff;
+ font-size:12px;
+ padding:6px;
+}
 </style>
 </head>
 
@@ -69,11 +101,13 @@ let user = localStorage.getItem("user");
 if(!user){ location.href="login.html"; }
 
 let d = JSON.parse(user);
-name.innerText=d.name||"";
-mobile.innerText=d.mobile||"";
-shop.innerText=d.shop||"";
-address.innerText=d.address||"";
-if(d.photo){photo.src=d.photo}
+
+/* PROFILE DATA */
+document.getElementById("name").innerText = d.name || "";
+document.getElementById("mobile").innerText = d.mobile || "";
+document.getElementById("shop").innerText = d.shop || "";
+document.getElementById("address").innerText = d.address || "";
+if(d.photo){ document.getElementById("photo").src=d.photo }
 
 function logout(){
  localStorage.removeItem("user");
@@ -89,9 +123,10 @@ db.collection("posts").where("uid","==",d.mobile).orderBy("time","desc")
   myPosts.innerHTML+=`
    <div class="post-card">
     <img src="${p.img}">
-    <p>${p.desc||""}</p>
-    <button onclick="editPost('${doc.id}','${p.desc||""}')">Edit</button>
-    <button onclick="deletePost('${doc.id}')">Delete</button>
+    <div class="post-actions">
+     <button onclick="editPost('${doc.id}','${p.desc||""}')">Edit</button>
+     <button onclick="deletePost('${doc.id}')">Delete</button>
+    </div>
    </div>`;
  });
 });
@@ -111,24 +146,29 @@ function deletePost(id){
  }
 }
 
-/* FOLLOWING LIST */
+/* FOLLOWING LIST (SHOW ONLY NAME) */
 db.collection("users").doc(d.mobile).onSnapshot(u=>{
  let f=u.data().following||[];
  followingList.innerHTML="";
  f.forEach(uid=>{
-  followingList.innerHTML+=`
-   <div>${uid} <button onclick="unfollow('${uid}')">Unfollow</button></div>
-  `;
+  db.collection("users").doc(uid).get().then(doc=>{
+   if(doc.exists){
+    let uname = doc.data().name || "User";
+    followingList.innerHTML+=`
+     <div>${uname} <button onclick="unfollow('${uid}')">Unfollow</button></div>
+    `;
+   }
+  });
  });
 });
 
-/* FOLLOWERS LIST */
+/* FOLLOWERS LIST (SHOW ONLY NAME) */
 db.collection("users").onSnapshot(s=>{
  followersList.innerHTML="";
  s.forEach(doc=>{
   let u=doc.data();
   if((u.following||[]).includes(d.mobile)){
-   followersList.innerHTML+=`<div>${u.name||doc.id}</div>`;
+   followersList.innerHTML+=`<div>${u.name||"User"}</div>`;
   }
  });
 });
@@ -142,4 +182,4 @@ function unfollow(uid){
 </script>
 
 </body>
-  </html>
+</html>
