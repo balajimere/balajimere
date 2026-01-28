@@ -14,7 +14,7 @@
 body{margin:0;font-family:Arial;background:#f2f2f2}
 header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20px}
 
-.story-bar{display:flex;overflow-x:auto;background:#fff;padding:8px}
+.story-bar{display:flex;overflow-x:auto;background:#fff;padding:8px;position:relative}
 .story{text-align:center;margin-right:10px}
 .story img{width:60px;height:60px;border-radius:50%;border:3px solid green}
 
@@ -46,7 +46,6 @@ header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20
 /* FLOAT BUTTON */
 #addBtn,#storyBtn{
  position:fixed;
- bottom:15px;
  background:#03A64A;
  color:#fff;
  width:55px;
@@ -58,8 +57,10 @@ header{background:#03A64A;color:#fff;padding:14px;text-align:center;font-size:20
  justify-content:center;
  cursor:pointer;
 }
-#addBtn{right:15px}
-#storyBtn{left:15px}
+#addBtn{bottom:15px;right:15px}
+
+/* STORY BUTTON SHIFTED UP */
+#storyBtn{top:70px;right:15px}
 </style>
 </head>
 
@@ -195,7 +196,9 @@ db.collection("posts").orderBy("time","desc").onSnapshot(snap=>{
    <div class="comment">
     <img src="${p.photo}">
     <b>${p.name}</b>
-    ${p.uid!=user.mobile?`<button onclick="followUser('${p.uid}')">Follow</button>`:""}
+    ${p.uid!=user.mobile?`<button onclick="followUser('${p.uid}')">Follow</button>`:
+    `<button onclick="editPost('${d.id}','${p.desc||""}')">Edit</button>
+     <button onclick="deletePost('${d.id}')">Delete</button>`}
    </div>
 
    <img src="${p.img}" class="post-img">
@@ -218,6 +221,21 @@ db.collection("posts").orderBy("time","desc").onSnapshot(snap=>{
   loadComments(d.id);
  });
 });
+
+/* EDIT POST */
+function editPost(id,oldText){
+ let newText=prompt("Edit your post",oldText);
+ if(newText!=null){
+  db.collection("posts").doc(id).update({desc:newText});
+ }
+}
+
+/* DELETE POST */
+function deletePost(id){
+ if(confirm("Delete this post?")){
+  db.collection("posts").doc(id).delete();
+ }
+}
 
 /* LIKE */
 function likePost(id,likes){
@@ -252,4 +270,4 @@ function sharePost(img){
 }
 </script>
 </body>
-</html>
+ </html>
