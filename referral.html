@@ -5,6 +5,9 @@
 <title>Referral</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <style>
 body{
  margin:0;
@@ -54,6 +57,8 @@ button{
  <p>Share your referral code with friends</p>
 
  <div class="code" id="refCode">----</div>
+ <div id="inviteCount"></div>
+ <div id="pointsCount"></div>
 
  <button onclick="copyCode()">Copy Referral Code</button>
  <button onclick="shareApp()">Share App</button>
@@ -61,37 +66,68 @@ button{
 </div>
 
 <script>
-let urlParams = new URLSearchParams(window.location.search);
-let code = urlParams.get("code");
+firebase.initializeApp({
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT"
+});
+const db = firebase.firestore();
 
-if(!code){
- code = "BALAJI123"; // default referral code
+/* APK DOWNLOAD LINK */
+let apkLink = "https://yourappsite.com/app.apk";
+
+/* USER MOBILE FROM LOGIN */
+let user = JSON.parse(localStorage.getItem("user"));
+if(!user){
+ alert("Login first");
+ location.href="login.html";
 }
+let mobile = user.mobile;
 
-document.getElementById("refCode").innerText = code;
+/* GET USER DATA */
+db.collection("users").doc(mobile).onSnapshot(doc=>{
+ let d = doc.data();
+ if(!d) return;
 
+ let code = d.referralCode;
+ let invites = d.invites || 0;
+ let points = d.points || 0;
+
+ document.getElementById("refCode").innerText = code;
+ document.getElementById("inviteCount").innerText = "Invites: " + invites;
+ document.getElementById("pointsCount").innerText = "Points: " + points;
+
+ window.myCode = code;
+});
+
+/* COPY CODE */
 function copyCode(){
- navigator.clipboard.writeText(code);
- alert("Referral code copied: " + code);
+ navigator.clipboard.writeText(window.myCode);
+ alert("Referral code copied: " + window.myCode);
 }
 
+/* SHARE APP (AUTO REF LINK) */
 function shareApp(){
- let text = "Download this app and use my referral code: " + code +
- "\n\nDownload here: https://yourappsite.com/download.html?ref=" + code;
+ let link = apkLink + "?ref=" + window.myCode;
+
+ let text = "Download this app and use my referral code: " + window.myCode +
+ "\n\nDownload App: " + link;
 
  if(navigator.share){
   navigator.share({
-   title: "My App",
-   text: text,
-   url: "https://yourappsite.com/download.html?ref=" + code
+   title:"My App",
+   text:text,
+   url:link
   });
  }else{
-  window.open("https://wa.me/?text=" + encodeURIComponent(text));
+  window.open("https://wa.me/?text="+encodeURIComponent(text));
  }
 }
 
+/* DOWNLOAD APP */
 function downloadApp(){
- window.location.href = "https://yourappsite.com/app.apk";
+ let link = apkLink + "?ref=" + window.myCode;
+ window.location.href = link;
 }
 </script>
 
