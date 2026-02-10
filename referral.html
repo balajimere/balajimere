@@ -74,31 +74,39 @@ firebase.initializeApp({
 const db = firebase.firestore();
 
 /* APK DOWNLOAD LINK */
-let apkLink = "https://yourappsite.com/app.apk";
+let apkLink = "https://balajimere.github.io/balajimere/download.apk";
+
+/* GET REF FROM URL */
+let urlParams = new URLSearchParams(window.location.search);
+let refFromUrl = urlParams.get("ref");
 
 /* USER MOBILE FROM LOGIN */
 let user = JSON.parse(localStorage.getItem("user"));
-if(!user){
- alert("Login first");
- location.href="login.html";
+
+if(user){
+ let mobile = user.mobile;
+
+ db.collection("users").doc(mobile).onSnapshot(doc=>{
+  let d = doc.data();
+  if(!d) return;
+
+  let code = d.referralCode;
+  let invites = d.invites || 0;
+  let points = d.points || 0;
+
+  document.getElementById("refCode").innerText = code;
+  document.getElementById("inviteCount").innerText = "Invites: " + invites;
+  document.getElementById("pointsCount").innerText = "Points: " + points;
+
+  window.myCode = code;
+ });
+}else{
+ let tempCode = refFromUrl || "BALAJIAPP";
+ document.getElementById("refCode").innerText = tempCode;
+ document.getElementById("inviteCount").innerText = "Invites: 0";
+ document.getElementById("pointsCount").innerText = "Points: 0";
+ window.myCode = tempCode;
 }
-let mobile = user.mobile;
-
-/* GET USER DATA */
-db.collection("users").doc(mobile).onSnapshot(doc=>{
- let d = doc.data();
- if(!d) return;
-
- let code = d.referralCode;
- let invites = d.invites || 0;
- let points = d.points || 0;
-
- document.getElementById("refCode").innerText = code;
- document.getElementById("inviteCount").innerText = "Invites: " + invites;
- document.getElementById("pointsCount").innerText = "Points: " + points;
-
- window.myCode = code;
-});
 
 /* COPY CODE */
 function copyCode(){
