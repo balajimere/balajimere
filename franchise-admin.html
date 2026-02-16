@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+:root{--green:#03A64A}
+body{margin:0;font-family:Arial;background:#f4f6f8}
+header{background:var(--green);color:#fff;padding:14px;text-align:center;font-size:20px}
+.card{background:#fff;margin:12px;padding:15px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.15)}
+h3{margin-top:0;color:#03A64A}
+input,button{
+ width:100%;padding:10px;margin-top:8px;
+ border-radius:8px;border:1px solid #ccc;font-size:14px
+}
+button{background:var(--green);border:none;color:#fff;cursor:pointer}
+.list-item{padding:8px;border-bottom:1px solid #ddd;font-size:14px}
+</style>
+</head>
+
+<body>
+
+<header>Admin Panel</header>
+
+<!-- ADD PRODUCT -->
+<div class="card">
+<h3>Add Product</h3>
+<input id="pname" placeholder="Product Name">
+<input id="pprice" type="number" placeholder="Price">
+<button onclick="addProduct()">Add Product</button>
+<div id="productList"></div>
+</div>
+
+<!-- FRANCHISE PARTNERS -->
+<div class="card">
+<h3>Franchise Partners</h3>
+<div id="partnerList"></div>
+</div>
+
+<!-- ALL ORDERS -->
+<div class="card">
+<h3>All Orders</h3>
+<div id="orderList"></div>
+</div>
+
+<!-- ADD PAYMENT -->
+<div class="card">
+<h3>Add Payment (Franchise)</h3>
+<input id="pmobile" placeholder="Franchise Mobile">
+<input id="pamount" type="number" placeholder="Amount">
+<button onclick="addPayment()">Add Payment</button>
+</div>
+
+<!-- PAYMENTS -->
+<div class="card">
+<h3>Payments</h3>
+<div id="paymentList"></div>
+</div>
+
+<!-- SUPPORT CHAT -->
+<div class="card">
+<h3>Support Messages</h3>
+<div id="chatList"></div>
+</div>
+
+<script>
+firebase.initializeApp({
+ apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain: "balajimere-c8eb9.firebaseapp.com",
+ projectId: "balajimere-c8eb9"
+});
+const db = firebase.firestore();
+
+/* ADD PRODUCT */
+function addProduct(){
+ let n=pname.value;
+ let p=pprice.value;
+ if(!n||!p){alert("Fill product");return;}
+ db.collection("products").add({name:n,price:p});
+ pname.value="";pprice.value="";
+}
+
+/* LOAD PRODUCTS */
+db.collection("products").onSnapshot(s=>{
+ productList.innerHTML="";
+ s.forEach(d=>{
+  let p=d.data();
+  productList.innerHTML+=`<div class="list-item">${p.name} - ₹${p.price}</div>`;
+ });
+});
+
+/* FRANCHISE PARTNERS */
+db.collection("franchisePartners").onSnapshot(s=>{
+ partnerList.innerHTML="";
+ s.forEach(d=>{
+  let f=d.data();
+  partnerList.innerHTML+=`
+   <div class="list-item">
+   ${f.name} (${f.mobile}) - Deposit: ${f.deposit || "pending"}
+   </div>`;
+ });
+});
+
+/* ALL ORDERS */
+db.collection("franchiseOrders").orderBy("time","desc")
+.onSnapshot(s=>{
+ orderList.innerHTML="";
+ s.forEach(d=>{
+  let o=d.data();
+  orderList.innerHTML+=`
+   <div class="list-item">
+    ${o.customer||""} ${o.customerMobile||""} | 
+    ${o.product||o.order} | ₹${o.total||""}
+   </div>`;
+ });
+});
+
+/* ADD PAYMENT */
+function addPayment(){
+ let m=pmobile.value;
+ let a=pamount.value;
+ if(!m||!a){alert("Fill payment");return;}
+ let profit = a * 0.10; // 10% auto profit
+ db.collection("franchisePayments").add({
+  mobile:m,
+  amount:a,
+  profit:profit,
+  time:new Date()
+ });
+ pmobile.value="";pamount.value="";
+}
+
+/* PAYMENTS */
+db.collection("franchisePayments").onSnapshot(s=>{
+ paymentList.innerHTML="";
+ s.forEach(d=>{
+  let p=d.data();
+  paymentList.innerHTML+=`
+   <div class="list-item">
+    ${p.mobile} - ₹${p.amount} (Profit ₹${p.profit})
+   </div>`;
+ });
+});
+
+/* CHAT */
+db.collection("franchiseChat").onSnapshot(s=>{
+ chatList.innerHTML="";
+ s.forEach(d=>{
+  let c=d.data();
+  chatList.innerHTML+=`
+   <div class="list-item">
+    ${c.mobile}: ${c.msg}
+   </div>`;
+ });
+});
+</script>
+
+</body>
+                             </html>
