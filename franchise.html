@@ -5,32 +5,35 @@
 <title>Franchise Partner</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <style>
-body{margin:0;font-family:Arial;background:#f2f2f2}
-header{
- background:#03A64A;
- color:#fff;
- padding:14px;
- text-align:center;
- font-size:22px;
- font-family:cursive;
+:root{--green:#03A64A}
+body{margin:0;font-family:Arial;background:#f4f6f8}
+header{background:var(--green);color:#fff;padding:14px;text-align:center;font-size:20px}
+
+.card{background:#fff;margin:12px;padding:15px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.15)}
+h3{margin-top:0;color:#03A64A}
+
+input,button,textarea{
+ width:100%;padding:10px;margin-top:8px;
+ border-radius:8px;border:1px solid #ccc;font-size:14px
 }
-.card{
- background:#fff;
- margin:15px;
- padding:15px;
- border-radius:10px;
- box-shadow:0 2px 6px rgba(0,0,0,.1);
+button{background:var(--green);border:none;color:#fff;cursor:pointer}
+small{color:#555}
+
+.list-item{
+ padding:8px;border-bottom:1px solid #ddd;font-size:14px
 }
-h2{color:#03A64A;margin-top:0}
-p{line-height:1.6;color:#333;font-size:15px}
-.button{
- display:inline-block;
- background:#03A64A;
- color:#fff;
- padding:8px 12px;
- border-radius:6px;
- text-decoration:none;
+.chat-box{
+ height:150px;overflow-y:auto;border:1px solid #ccc;border-radius:8px;padding:8px
+}
+.chat-msg{background:#e7f7ee;margin:5px 0;padding:6px;border-radius:6px}
+
+.bill-box{
+ border:1px dashed #999;
+ padding:10px;
  margin-top:10px;
  font-size:14px;
 }
@@ -39,32 +42,236 @@ p{line-height:1.6;color:#333;font-size:15px}
 
 <body>
 
-<header>Franchise Partner</header>
+<header>Franchise Partner Panel</header>
 
+<!-- PARTNER REGISTRATION -->
 <div class="card">
- <h2>Become a Franchise Partner</h2>
- <p>
- Shree Balaji Oil Agency apne business ko expand karne ke liye passionate aur dedicated partners ki talash me hai.
- Franchise ban kar aap apna business grow kar sakte hain aur brand ka hissa ban sakte hain.
- </p>
+<h3>Partner Registration</h3>
+<input id="fname" placeholder="Full Name">
+<input id="fmobile" placeholder="Mobile Number">
+<input type="file" id="photo" accept="image/*">
+<input type="file" id="aadhar" accept="image/*">
+<button onclick="registerPartner()">Register</button>
 </div>
 
+<!-- SECURITY DEPOSIT -->
 <div class="card">
- <h2>Benefits of Franchise</h2>
- <ul>
-  <li>Established Brand Support</li>
-  <li>Training & Guidance</li>
-  <li>Marketing & Operational Assistance</li>
-  <li>High Profit Potential</li>
- </ul>
+<h3>Security Deposit</h3>
+<p>Deposit Amount: <b>₹10,000</b></p>
+<p>Status: <span id="depositStatus">Pending</span></p>
 </div>
 
+<!-- ORDER PANEL -->
 <div class="card">
- <h2>How to Join</h2>
- <p>
- Franchise banne ke liye hume contact kare: <a href="mailto:franchise@balajioil.com" class="button">Contact Now</a>
- </p>
+<h3>Order Panel</h3>
+<input id="orderText" placeholder="Enter product order">
+<button onclick="placeOrder()">Place Order</button>
+<div id="orderList"></div>
 </div>
+
+<!-- DIRECT CUSTOMER BILL PANEL -->
+<div class="card">
+<h3>Direct Customer Order & Bill</h3>
+
+<input id="custName" placeholder="Customer Name">
+<input id="productName" placeholder="Product Name">
+<input id="qty" type="number" placeholder="Quantity">
+<input id="price" type="number" placeholder="Price per item">
+
+<button onclick="generateBill()">Generate Bill</button>
+
+<div class="bill-box" id="billBox"></div>
+
+<button onclick="saveBillOrder()">Save Order</button>
+</div>
+
+<!-- PAYMENT HISTORY -->
+<div class="card">
+<h3>Payment History</h3>
+<div id="paymentList"></div>
+</div>
+
+<!-- PROFIT REPORT -->
+<div class="card">
+<h3>Profit Report</h3>
+<div id="profitReport">Total Profit: ₹0</div>
+</div>
+
+<!-- SUPPORT CHAT -->
+<div class="card">
+<h3>Support Chat</h3>
+<div class="chat-box" id="chatBox"></div>
+<input id="chatMsg" placeholder="Type message">
+<button onclick="sendMsg()">Send</button>
+</div>
+
+<script>
+firebase.initializeApp({
+ apiKey: "AIzaSyCt99elKr4T1OJihGpQ6t2luYmCmEBJeo0",
+ authDomain: "balajimere-c8eb9.firebaseapp.com",
+ projectId: "balajimere-c8eb9"
+});
+const db = firebase.firestore();
+
+let user = JSON.parse(localStorage.getItem("user"));
+if(!user){
+ alert("Login first");
+ location.href="login.html";
+}
+let mobile = user.mobile;
+
+/* IMAGE UPLOAD */
+async function uploadImage(file){
+ let formData = new FormData();
+ formData.append("image", file);
+
+ let res = await fetch("https://api.imgbb.com/1/upload?key=5e77bfe737324a6c147697a13fefcb3d",{
+  method:"POST",
+  body:formData
+ });
+ let data = await res.json();
+ return data.data.url;
+}
+
+/* REGISTER PARTNER */
+async function registerPartner(){
+ let name = fname.value;
+ let mob = fmobile.value;
+
+ if(!name || !mob){
+  alert("Fill details");
+  return;
+ }
+
+ let photoURL="", aadharURL="";
+
+ if(photo.files[0]) photoURL = await uploadImage(photo.files[0]);
+ if(aadhar.files[0]) aadharURL = await uploadImage(aadhar.files[0]);
+
+ db.collection("franchisePartners").doc(mobile).set({
+  name:name,
+  mobile:mob,
+  photo:photoURL,
+  aadhar:aadharURL,
+  deposit:"pending",
+  time:new Date()
+ });
+
+ alert("Registered as Franchise Partner");
+}
+
+/* PLACE ORDER */
+function placeOrder(){
+ let txt = orderText.value;
+ if(!txt) return;
+
+ db.collection("franchiseOrders").add({
+  mobile:mobile,
+  order:txt,
+  time:new Date()
+ });
+
+ orderText.value="";
+}
+
+/* LOAD ORDERS */
+db.collection("franchiseOrders").where("mobile","==",mobile)
+.onSnapshot(s=>{
+ orderList.innerHTML="";
+ s.forEach(d=>{
+  let o=d.data();
+  orderList.innerHTML+=`<div class="list-item">${o.order}</div>`;
+ });
+});
+
+/* BILL SYSTEM */
+let billTotal=0;
+function generateBill(){
+ let cname = custName.value;
+ let product = productName.value;
+ let q = Number(qty.value);
+ let p = Number(price.value);
+
+ if(!cname || !product || !q || !p){
+  alert("Fill all bill fields");
+  return;
+ }
+
+ billTotal = q * p;
+
+ billBox.innerHTML = `
+  <b>Customer:</b> ${cname}<br>
+  <b>Product:</b> ${product}<br>
+  <b>Qty:</b> ${q}<br>
+  <b>Price:</b> ₹${p}<br>
+  <hr>
+  <b>Total:</b> ₹${billTotal}
+ `;
+}
+
+/* SAVE BILL ORDER */
+function saveBillOrder(){
+ if(billTotal==0){
+  alert("Generate bill first");
+  return;
+ }
+
+ db.collection("franchiseOrders").add({
+  mobile:mobile,
+  customer:custName.value,
+  product:productName.value,
+  qty:qty.value,
+  price:price.value,
+  total:billTotal,
+  time:new Date()
+ });
+
+ alert("Order Saved");
+ billBox.innerHTML="";
+ custName.value="";
+ productName.value="";
+ qty.value="";
+ price.value="";
+ billTotal=0;
+}
+
+/* PAYMENT HISTORY + AUTO PROFIT */
+db.collection("franchisePayments").where("mobile","==",mobile)
+.onSnapshot(s=>{
+ paymentList.innerHTML="";
+ let profit=0;
+ s.forEach(d=>{
+  let p=d.data();
+  let autoProfit = p.profit || (Number(p.amount) * 0.10);
+  paymentList.innerHTML+=`<div class="list-item">₹${p.amount}</div>`;
+  profit += autoProfit;
+ });
+ profitReport.innerText="Total Profit: ₹"+profit.toFixed(2);
+});
+
+/* SUPPORT CHAT */
+function sendMsg(){
+ let msg = chatMsg.value;
+ if(!msg) return;
+
+ db.collection("franchiseChat").add({
+  mobile:mobile,
+  msg:msg,
+  time:new Date()
+ });
+
+ chatMsg.value="";
+}
+
+db.collection("franchiseChat").where("mobile","==",mobile)
+.onSnapshot(s=>{
+ chatBox.innerHTML="";
+ s.forEach(d=>{
+  let c=d.data();
+  chatBox.innerHTML+=`<div class="chat-msg">${c.msg}</div>`;
+ });
+});
+</script>
 
 </body>
 </html>
