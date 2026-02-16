@@ -7,36 +7,23 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
 
 <style>
 :root{--green:#03A64A}
 body{margin:0;font-family:Arial;background:#f4f6f8}
 header{background:var(--green);color:#fff;padding:14px;text-align:center;font-size:20px}
-
 .card{background:#fff;margin:12px;padding:15px;border-radius:12px;box-shadow:0 3px 8px rgba(0,0,0,.15)}
 h3{margin-top:0;color:#03A64A}
-
-input,button,textarea{
+input,select,button,textarea{
  width:100%;padding:10px;margin-top:8px;
  border-radius:8px;border:1px solid #ccc;font-size:14px
 }
 button{background:var(--green);border:none;color:#fff;cursor:pointer}
-small{color:#555}
-
-.list-item{
- padding:8px;border-bottom:1px solid #ddd;font-size:14px
-}
-.chat-box{
- height:150px;overflow-y:auto;border:1px solid #ccc;border-radius:8px;padding:8px
-}
+.list-item{padding:8px;border-bottom:1px solid #ddd;font-size:14px}
+.chat-box{height:150px;overflow-y:auto;border:1px solid #ccc;border-radius:8px;padding:8px}
 .chat-msg{background:#e7f7ee;margin:5px 0;padding:6px;border-radius:6px}
-
-.bill-box{
- border:1px dashed #999;
- padding:10px;
- margin-top:10px;
- font-size:14px;
-}
+.bill-box{border:1px dashed #999;padding:10px;margin-top:10px;font-size:14px}
 </style>
 </head>
 
@@ -54,14 +41,12 @@ small{color:#555}
 <button onclick="registerPartner()">Register</button>
 </div>
 
-<!-- SECURITY DEPOSIT -->
 <div class="card">
 <h3>Security Deposit</h3>
 <p>Deposit Amount: <b>₹10,000</b></p>
 <p>Status: <span id="depositStatus">Pending</span></p>
 </div>
 
-<!-- ORDER PANEL -->
 <div class="card">
 <h3>Order Panel</h3>
 <input id="orderText" placeholder="Enter product order">
@@ -73,8 +58,13 @@ small{color:#555}
 <div class="card">
 <h3>Direct Customer Order & Bill</h3>
 
+<input id="custMobile" placeholder="Customer Mobile" onblur="loadCustomer()">
 <input id="custName" placeholder="Customer Name">
-<input id="productName" placeholder="Product Name">
+
+<select id="productSelect" onchange="setProductPrice()">
+<option value="">Select Product</option>
+</select>
+
 <input id="qty" type="number" placeholder="Quantity">
 <input id="price" type="number" placeholder="Price per item">
 
@@ -83,21 +73,19 @@ small{color:#555}
 <div class="bill-box" id="billBox"></div>
 
 <button onclick="saveBillOrder()">Save Order</button>
+<button onclick="downloadPDF()">Download Bill PDF</button>
 </div>
 
-<!-- PAYMENT HISTORY -->
 <div class="card">
 <h3>Payment History</h3>
 <div id="paymentList"></div>
 </div>
 
-<!-- PROFIT REPORT -->
 <div class="card">
 <h3>Profit Report</h3>
 <div id="profitReport">Total Profit: ₹0</div>
 </div>
 
-<!-- SUPPORT CHAT -->
 <div class="card">
 <h3>Support Chat</h3>
 <div class="chat-box" id="chatBox"></div>
@@ -114,21 +102,40 @@ firebase.initializeApp({
 const db = firebase.firestore();
 
 let user = JSON.parse(localStorage.getItem("user"));
-if(!user){
- alert("Login first");
- location.href="login.html";
-}
+if(!user){ alert("Login first"); location.href="login.html"; }
 let mobile = user.mobile;
+
+/* LOAD PRODUCTS FROM HOME (Firestore products) */
+db.collection("products").onSnapshot(s=>{
+ productSelect.innerHTML='<option value="">Select Product</option>';
+ s.forEach(d=>{
+  let p=d.data();
+  productSelect.innerHTML+=`<option value="${p.price}">${p.name}</option>`;
+ });
+});
+
+/* AUTO CUSTOMER DETAILS */
+function loadCustomer(){
+ let mob = custMobile.value;
+ if(!mob) return;
+ db.collection("users").doc(mob).get().then(doc=>{
+  if(doc.exists){
+   custName.value = doc.data().name;
+  }
+ });
+}
+
+/* SET PRICE */
+function setProductPrice(){
+ let val = productSelect.value;
+ if(val) price.value = val;
+}
 
 /* IMAGE UPLOAD */
 async function uploadImage(file){
  let formData = new FormData();
  formData.append("image", file);
-
- let res = await fetch("https://api.imgbb.com/1/upload?key=5e77bfe737324a6c147697a13fefcb3d",{
-  method:"POST",
-  body:formData
- });
+ let res = await fetch("https://api.imgbb.com/1/upload?key=5e77bfe737324a6c147697a13fefcb3d",{method:"POST",body:formData});
  let data = await res.json();
  return data.data.url;
 }
@@ -137,132 +144,83 @@ async function uploadImage(file){
 async function registerPartner(){
  let name = fname.value;
  let mob = fmobile.value;
-
- if(!name || !mob){
-  alert("Fill details");
-  return;
- }
-
  let photoURL="", aadharURL="";
-
  if(photo.files[0]) photoURL = await uploadImage(photo.files[0]);
  if(aadhar.files[0]) aadharURL = await uploadImage(aadhar.files[0]);
-
  db.collection("franchisePartners").doc(mobile).set({
-  name:name,
-  mobile:mob,
-  photo:photoURL,
-  aadhar:aadharURL,
-  deposit:"pending",
-  time:new Date()
+  name,mobile:mob,photo:photoURL,aadhar:aadharURL,deposit:"pending",time:new Date()
  });
-
- alert("Registered as Franchise Partner");
+ alert("Registered");
 }
 
-/* PLACE ORDER */
+/* ORDER */
 function placeOrder(){
  let txt = orderText.value;
  if(!txt) return;
-
- db.collection("franchiseOrders").add({
-  mobile:mobile,
-  order:txt,
-  time:new Date()
- });
-
+ db.collection("franchiseOrders").add({mobile,order:txt,time:new Date()});
  orderText.value="";
 }
 
-/* LOAD ORDERS */
 db.collection("franchiseOrders").where("mobile","==",mobile)
 .onSnapshot(s=>{
  orderList.innerHTML="";
  s.forEach(d=>{
   let o=d.data();
-  orderList.innerHTML+=`<div class="list-item">${o.order}</div>`;
+  orderList.innerHTML+=`<div class="list-item">${o.order||o.product}</div>`;
  });
 });
 
-/* BILL SYSTEM */
+/* BILL */
 let billTotal=0;
 function generateBill(){
- let cname = custName.value;
- let product = productName.value;
- let q = Number(qty.value);
- let p = Number(price.value);
-
- if(!cname || !product || !q || !p){
-  alert("Fill all bill fields");
-  return;
- }
-
- billTotal = q * p;
-
- billBox.innerHTML = `
+ let cname=custName.value;
+ let product=productSelect.options[productSelect.selectedIndex].text;
+ let q=Number(qty.value);
+ let p=Number(price.value);
+ billTotal=q*p;
+ billBox.innerHTML=`
   <b>Customer:</b> ${cname}<br>
+  <b>Mobile:</b> ${custMobile.value}<br>
   <b>Product:</b> ${product}<br>
   <b>Qty:</b> ${q}<br>
-  <b>Price:</b> ₹${p}<br>
-  <hr>
+  <b>Price:</b> ₹${p}<hr>
   <b>Total:</b> ₹${billTotal}
  `;
 }
 
-/* SAVE BILL ORDER */
 function saveBillOrder(){
- if(billTotal==0){
-  alert("Generate bill first");
-  return;
- }
-
  db.collection("franchiseOrders").add({
-  mobile:mobile,
-  customer:custName.value,
-  product:productName.value,
-  qty:qty.value,
-  price:price.value,
-  total:billTotal,
-  time:new Date()
+  mobile,customer:custName.value,customerMobile:custMobile.value,
+  product:productSelect.options[productSelect.selectedIndex].text,
+  qty:qty.value,price:price.value,total:billTotal,time:new Date()
  });
-
  alert("Order Saved");
- billBox.innerHTML="";
- custName.value="";
- productName.value="";
- qty.value="";
- price.value="";
- billTotal=0;
 }
 
-/* PAYMENT HISTORY + AUTO PROFIT */
+function downloadPDF(){
+ html2pdf().from(billBox).save("bill.pdf");
+}
+
+/* PROFIT */
 db.collection("franchisePayments").where("mobile","==",mobile)
 .onSnapshot(s=>{
  paymentList.innerHTML="";
  let profit=0;
  s.forEach(d=>{
   let p=d.data();
-  let autoProfit = p.profit || (Number(p.amount) * 0.10);
+  let autoProfit = p.profit || (Number(p.amount)*0.10);
   paymentList.innerHTML+=`<div class="list-item">₹${p.amount}</div>`;
-  profit += autoProfit;
+  profit+=autoProfit;
  });
  profitReport.innerText="Total Profit: ₹"+profit.toFixed(2);
 });
 
-/* SUPPORT CHAT */
+/* CHAT */
 function sendMsg(){
- let msg = chatMsg.value;
- if(!msg) return;
-
- db.collection("franchiseChat").add({
-  mobile:mobile,
-  msg:msg,
-  time:new Date()
- });
-
+ let msg=chatMsg.value;
+ db.collection("franchiseChat").add({mobile,msg,time:new Date()});
  chatMsg.value="";
 }
-
 db.collection("franchiseChat").where("mobile","==",mobile)
 .onSnapshot(s=>{
  chatBox.innerHTML="";
