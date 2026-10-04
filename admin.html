@@ -68,21 +68,32 @@ button.gray{background:#777}
   </div>
 
   <div class="card">
-  <h3>Products</h3>
 
-  <select id="productCategoryFilter" onchange="filterProducts()">
-    <option value="ALL">All Categories</option>
-  </select>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
 
-  <button onclick="downloadCategoryPDF()">
-    Download Category PDF
-  </button>
+    <h3 style="margin:0;">Products</h3>
 
-  <div id="productCount" class="small" style="margin-top:8px;">
+    <select id="productCategoryFilter"
+            onchange="filterProducts()"
+            style="width:auto;flex:1;min-width:150px;margin-top:0;">
+      <option value="ALL">All Categories</option>
+    </select>
+
+    <button onclick="downloadCategoryPDF()"
+            style="width:auto;margin-top:0;">
+      PDF
+    </button>
+
+  </div>
+
+  <div id="productCount"
+       class="small"
+       style="margin-top:8px;">
     Total Products: 0
   </div>
 
   <div id="productList" class="scroll"></div>
+
 </div>
 
   <div class="card">
@@ -239,163 +250,298 @@ async function addProduct(){
 
 let allProducts = [];
 
+
+/* LOAD PRODUCTS */
+
 function loadProducts(){
 
- db.collection("products").onSnapshot(s=>{
+  db.collection("products").onSnapshot(function(snapshot){
 
-  allProducts=[];
+    allProducts = [];
 
-  s.forEach(d=>{
+    snapshot.forEach(function(doc){
 
-   allProducts.push({
-    id:d.id,
-    ...d.data()
-   });
+      let p = doc.data();
+
+      allProducts.push({
+        id: doc.id,
+        data: p
+      });
+
+    });
+
+    loadProductCategories();
+
+    filterProducts();
 
   });
 
-  loadProductCategoryFilter();
-  filterProducts();
-
- });
 }
 
 
-/* CATEGORY FILTER */
+/* CATEGORY SELECT */
 
-function loadProductCategoryFilter(){
+function loadProductCategories(){
 
- let select=document.getElementById("productCategoryFilter");
+  let select =
+    document.getElementById("productCategoryFilter");
 
- let oldValue=select.value;
+  if(!select) return;
 
- let categories=[];
+  let oldValue = select.value;
 
- allProducts.forEach(p=>{
+  select.innerHTML =
+    '<option value="ALL">All Categories</option>';
 
-  if(p.category && !categories.includes(p.category)){
-   categories.push(p.category);
+  let categories = [];
+
+  allProducts.forEach(function(item){
+
+    let category = item.data.category;
+
+    if(
+      category &&
+      !categories.includes(category)
+    ){
+
+      categories.push(category);
+
+    }
+
+  });
+
+  categories.sort();
+
+  categories.forEach(function(category){
+
+    let option =
+      document.createElement("option");
+
+    option.value = category;
+    option.textContent = category;
+
+    select.appendChild(option);
+
+  });
+
+  if(categories.includes(oldValue)){
+
+    select.value = oldValue;
+
+  }else{
+
+    select.value = "ALL";
+
   }
 
- });
-
- categories.sort();
-
- select.innerHTML=
- `<option value="ALL">All Categories</option>`;
-
- categories.forEach(c=>{
-
-  select.innerHTML+=
-  `<option value="${c}">${c}</option>`;
-
- });
-
- if(categories.includes(oldValue)){
-  select.value=oldValue;
- }
-
 }
 
 
-/* FILTER */
+/* FILTER PRODUCTS */
 
 function filterProducts(){
 
- let selected=
- document.getElementById("productCategoryFilter").value;
+  let select =
+    document.getElementById("productCategoryFilter");
 
- let products;
+  let selected =
+    select.value;
 
- if(selected==="ALL"){
-
-  products=allProducts;
-
- }else{
-
-  products=allProducts.filter(p=>
-   p.category===selected
-  );
-
- }
-
- displayProducts(products);
-
-}
+  let products = allProducts;
 
 
-/* DISPLAY */
+  if(selected !== "ALL"){
 
-function displayProducts(products){
+    products =
+      allProducts.filter(function(item){
 
- productList.innerHTML="";
+        return item.data.category === selected;
 
- productCount.innerText=
- "Total Products: "+products.length;
+      });
 
- products.forEach(p=>{
+  }
 
-  productList.innerHTML+=`
-
-  <div class="product">
-
-   <b>${p.name||""}</b><br>
-
-   <span class="small">
-    Category: ${p.category||""}
-    | Price: ₹${p.price||""}
-    | MRP: ₹${p.mrp||""}
-    | ${p.mobile||""}
-   </span>
-
-   <div class="actions">
-
-    <button onclick='editProduct("${p.id}",${JSON.stringify(p)})'>
-     Edit
-    </button>
-
-    <button class="red"
-     onclick="delProduct('${p.id}')">
-     Delete
-    </button>
-
-    <button class="gray"
-     onclick="toggleHide('${p.id}',${p.hidden||false})">
-     ${p.hidden?"Show":"Hide"}
-    </button>
-
-    <button
-     onclick="togglePin('${p.id}',${p.pinned||false})">
-     ${p.pinned?"Unpin":"Pin"}
-    </button>
-
-   </div>
-
-  </div>
-
-  `;
-
- });
+  showProducts(products);
 
 }
 
 
-/* EDIT */
+/* SHOW PRODUCTS */
+
+function showProducts(products){
+
+  let list =
+    document.getElementById("productList");
+
+  let count =
+    document.getElementById("productCount");
+
+  list.innerHTML = "";
+
+  count.innerText =
+    "Total Products: " + products.length;
+
+
+  products.forEach(function(item){
+
+    let id = item.id;
+    let p = item.data;
+
+
+    let div =
+      document.createElement("div");
+
+    div.className = "product";
+
+
+    let name =
+      document.createElement("b");
+
+    name.innerText =
+      p.name || "";
+
+    div.appendChild(name);
+
+
+    div.appendChild(
+      document.createElement("br")
+    );
+
+
+    let info =
+      document.createElement("span");
+
+    info.className = "small";
+
+    info.innerText =
+      (p.category || "") +
+      " | ₹" +
+      (p.price || "") +
+      " | MRP ₹" +
+      (p.mrp || "") +
+      " | " +
+      (p.mobile || "");
+
+    div.appendChild(info);
+
+
+    let actions =
+      document.createElement("div");
+
+    actions.className = "actions";
+
+
+    /* EDIT */
+
+    let edit =
+      document.createElement("button");
+
+    edit.innerText = "Edit";
+
+    edit.onclick = function(){
+
+      editProduct(id, p);
+
+    };
+
+    actions.appendChild(edit);
+
+
+    /* DELETE */
+
+    let del =
+      document.createElement("button");
+
+    del.innerText = "Delete";
+
+    del.className = "red";
+
+    del.onclick = function(){
+
+      delProduct(id);
+
+    };
+
+    actions.appendChild(del);
+
+
+    /* HIDE */
+
+    let hide =
+      document.createElement("button");
+
+    hide.className = "gray";
+
+    hide.innerText =
+      p.hidden ? "Show" : "Hide";
+
+    hide.onclick = function(){
+
+      toggleHide(
+        id,
+        p.hidden || false
+      );
+
+    };
+
+    actions.appendChild(hide);
+
+
+    /* PIN */
+
+    let pin =
+      document.createElement("button");
+
+    pin.innerText =
+      p.pinned ? "Unpin" : "Pin";
+
+    pin.onclick = function(){
+
+      togglePin(
+        id,
+        p.pinned || false
+      );
+
+    };
+
+    actions.appendChild(pin);
+
+
+    div.appendChild(actions);
+
+    list.appendChild(div);
+
+  });
+
+}
+
+
+/* EDIT PRODUCT */
 
 function editProduct(id,p){
 
- pid.value=id;
- pname.value=p.name||"";
- pprice.value=p.price||"";
- pmrp.value=p.mrp||"";
- pmobile.value=p.mobile||"";
- pdesc.value=p.description||"";
- pcategory.value=p.category||"";
+  document.getElementById("pid").value =
+    id;
 
- window.scrollTo({
-  top:0,
-  behavior:"smooth"
- });
+  document.getElementById("pname").value =
+    p.name || "";
+
+  document.getElementById("pprice").value =
+    p.price || "";
+
+  document.getElementById("pmrp").value =
+    p.mrp || "";
+
+  document.getElementById("pmobile").value =
+    p.mobile || "";
+
+  document.getElementById("pdesc").value =
+    p.description || "";
+
+  document.getElementById("pcategory").value =
+    p.category || "";
+
+  window.scrollTo(0,0);
 
 }
 
@@ -404,13 +550,13 @@ function editProduct(id,p){
 
 function delProduct(id){
 
- if(confirm("Delete product?")){
+  if(confirm("Delete product?")){
 
-  db.collection("products")
-   .doc(id)
-   .delete();
+    db.collection("products")
+      .doc(id)
+      .delete();
 
- }
+  }
 
 }
 
@@ -419,11 +565,11 @@ function delProduct(id){
 
 function toggleHide(id,v){
 
- db.collection("products")
- .doc(id)
- .update({
-  hidden:!v
- });
+  db.collection("products")
+    .doc(id)
+    .update({
+      hidden: !v
+    });
 
 }
 
@@ -432,98 +578,182 @@ function toggleHide(id,v){
 
 function togglePin(id,v){
 
- db.collection("products")
- .doc(id)
- .update({
-  pinned:!v
- });
+  db.collection("products")
+    .doc(id)
+    .update({
+      pinned: !v
+    });
 
 }
 
 
-/* CATEGORY PDF */
+/* =========================
+   CATEGORY PDF
+========================= */
 
 function downloadCategoryPDF(){
 
- let selected=
- document.getElementById("productCategoryFilter").value;
+  let select =
+    document.getElementById(
+      "productCategoryFilter"
+    );
 
- let products;
+  let selected =
+    select.value;
 
- if(selected==="ALL"){
 
-  products=allProducts;
+  if(selected === "ALL"){
 
- }else{
+    alert(
+      "Pehle category select karein."
+    );
 
-  products=allProducts.filter(p=>
-   p.category===selected
-  );
+    return;
 
- }
-
- if(products.length===0){
-
-  alert("Is category me koi product nahi hai.");
-  return;
-
- }
-
- const {jsPDF}=window.jspdf;
-
- const doc=new jsPDF();
-
- doc.setFontSize(18);
-
- doc.text(
-  "Shree Balaji Oil Agency",
-  14,
-  18
- );
-
- doc.setFontSize(13);
-
- doc.text(
-  selected==="ALL"
-   ? "All Products"
-   : "Category: "+selected,
-  14,
-  27
- );
-
- doc.autoTable({
-
-  startY:35,
-
-  head:[[
-   "Product Name",
-   "Price",
-   "MRP",
-   "Category"
-  ]],
-
-  body:products.map(p=>[
-   p.name||"",
-   p.price ? "Rs. "+p.price : "",
-   p.mrp ? "Rs. "+p.mrp : "",
-   p.category||""
-  ]),
-
-  theme:"grid",
-
-  styles:{
-   fontSize:10,
-   cellPadding:4
   }
 
- });
 
- doc.save(
-  selected==="ALL"
-   ? "All-Products.pdf"
-   : selected+"-Products.pdf"
- );
+  let products =
+    allProducts.filter(function(item){
+
+      return item.data.category === selected;
+
+    });
+
+
+  if(products.length === 0){
+
+    alert(
+      "Is category me koi product nahi hai."
+    );
+
+    return;
+
+  }
+
+
+  const { jsPDF } = window.jspdf;
+
+  let doc =
+    new jsPDF();
+
+
+  /* TITLE */
+
+  doc.setFontSize(18);
+
+  doc.text(
+    "Shree Balaji Oil Agency",
+    14,
+    18
+  );
+
+
+  doc.setFontSize(13);
+
+  doc.text(
+    "Category: " + selected,
+    14,
+    27
+  );
+
+
+  /* PRODUCT TABLE */
+
+  let rows =
+    products.map(function(item){
+
+      let p = item.data;
+
+      return [
+
+        p.name || "",
+
+        p.price || "",
+
+        p.mrp || "",
+
+        p.category || ""
+
+      ];
+
+    });
+
+
+  doc.autoTable({
+
+    startY: 35,
+
+    head: [[
+      "Product Name",
+      "Price",
+      "MRP",
+      "Category"
+    ]],
+
+    body: rows,
+
+    theme: "grid",
+
+    styles: {
+      fontSize: 10,
+      cellPadding: 4
+    },
+
+    headStyles: {
+      fontStyle: "bold"
+    }
+
+  });
+
+
+  /* TOTAL */
+
+  let finalY =
+    doc.lastAutoTable.finalY + 10;
+
+  doc.setFontSize(10);
+
+  doc.text(
+    "Total Products: " + products.length,
+    14,
+    finalY
+  );
+
+
+  /* DOWNLOAD */
+
+  let fileName =
+    selected
+      .replace(/[^a-zA-Z0-9]/g,"-")
+      + "-Products.pdf";
+
+
+  doc.save(fileName);
 
 }
+
+function editProduct(id,p){
+ pid.value=id;
+ pname.value=p.name||"";
+ pprice.value=p.price||"";
+ pmrp.value=p.mrp||"";
+ pmobile.value=p.mobile||"";
+ pdesc.value=p.description||"";
+ pcategory.value=p.category||"";
+ window.scrollTo(0,0);
+}
+function delProduct(id){
+ if(confirm("Delete product?"))
+  db.collection("products").doc(id).delete();
+}
+function toggleHide(id,v){
+ db.collection("products").doc(id).update({hidden:!v});
+}
+function togglePin(id,v){
+ db.collection("products").doc(id).update({pinned:!v});
+}
+</script>
+
 </body>
-</html>
+                                           </html>
