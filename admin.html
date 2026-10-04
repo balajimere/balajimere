@@ -126,48 +126,89 @@ function loadCategories(){
  });
 }
 
-/* IMAGE UPLOAD */
+/* IMAGE UPLOAD + ADD / EDIT PRODUCT */
 async function addProduct(){
+
  let imageInput = document.getElementById("images");
+
+ // Existing images from current product
+ let oldImages = [];
+
+ if(pid.value){
+   let oldDoc = await db.collection("products").doc(pid.value).get();
+
+   if(oldDoc.exists){
+     let oldData = oldDoc.data();
+
+     if(Array.isArray(oldData.images)){
+       oldImages = oldData.images;
+     }else if(oldData.image){
+       oldImages = [oldData.image];
+     }
+   }
+ }
+
  let urls = [];
 
+ /* Upload only if new photos are selected */
  if(imageInput && imageInput.files && imageInput.files.length > 0){
-  for(const file of imageInput.files){
-   let fd = new FormData();
-   fd.append("image", file);
 
-   let res = await fetch(
-     "https://api.imgbb.com/1/upload?key=" + IMGBB_KEY,
-     { method:"POST", body:fd }
-   );
+   for(const file of imageInput.files){
 
-   let json = await res.json();
-   if(json && json.data && json.data.url){
-     urls.push(json.data.url);
+     let fd = new FormData();
+     fd.append("image", file);
+
+     let res = await fetch(
+       "https://api.imgbb.com/1/upload?key=" + IMGBB_KEY,
+       {
+         method:"POST",
+         body:fd
+       }
+     );
+
+     let json = await res.json();
+
+     if(json && json.data && json.data.url){
+       urls.push(json.data.url);
+     }
    }
-  }
+
+ }else{
+   // No new photo selected → keep old photos
+   urls = oldImages;
  }
 
  let data={
-  category:pcategory.value,
-  name:pname.value,
-  price:pprice.value,
-  mrp:pmrp.value,
-  mobile:pmobile.value,
-  description:pdesc.value,
-  images:urls,
-  image:urls[0] || "",
-  hidden:false,
-  pinned:false,
-  time:new Date()
+   category:pcategory.value,
+   name:pname.value,
+   price:pprice.value,
+   mrp:pmrp.value,
+   mobile:pmobile.value,
+   description:pdesc.value,
+
+   // Keep old images if no new image uploaded
+   images:urls,
+   image:urls[0] || "",
+
+   hidden:false,
+   pinned:false
  };
 
  if(pid.value){
-  await db.collection("products").doc(pid.value).update(data);
+
+   await db.collection("products")
+     .doc(pid.value)
+     .update(data);
+
  }else{
-  await db.collection("products").add(data);
+
+   data.time = new Date();
+
+   await db.collection("products")
+     .add(data);
  }
 
+ // Clear form
  pid.value="";
  pname.value="";
  pprice.value="";
@@ -175,6 +216,8 @@ async function addProduct(){
  pmobile.value="";
  pdesc.value="";
  imageInput.value="";
+
+ alert("Product saved successfully");
 }
 
 /* PRODUCTS */
