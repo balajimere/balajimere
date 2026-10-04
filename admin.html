@@ -26,6 +26,8 @@ button.gray{background:#777}
 .scroll{max-height:260px;overflow-y:auto}
 .actions button{width:auto;margin-right:6px;margin-top:6px;font-size:13px}
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body>
@@ -66,9 +68,22 @@ button.gray{background:#777}
   </div>
 
   <div class="card">
-    <h3>Products</h3>
-    <div id="productList" class="scroll"></div>
+  <h3>Products</h3>
+
+  <select id="productCategoryFilter" onchange="filterProducts()">
+    <option value="ALL">All Categories</option>
+  </select>
+
+  <button onclick="downloadCategoryPDF()">
+    Download Category PDF
+  </button>
+
+  <div id="productCount" class="small" style="margin-top:8px;">
+    Total Products: 0
   </div>
+
+  <div id="productList" class="scroll"></div>
+</div>
 
   <div class="card">
     <button onclick="location.href='user.html'">View Users</button>
@@ -221,27 +236,154 @@ async function addProduct(){
 }
 
 /* PRODUCTS */
+
+let allProducts = [];
+
 function loadProducts(){
+
  db.collection("products").onSnapshot(s=>{
-  productList.innerHTML="";
+
+  allProducts=[];
+
   s.forEach(d=>{
-   let p=d.data();
-   productList.innerHTML+=`
-   <div class="product">
-    <b>${p.name}</b><br>
-    <span class="small">${p.category} | ₹${p.price} | ${p.mobile||""}</span>
-    <div class="actions">
-     <button onclick="editProduct('${d.id}',${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button>
-     <button class="red" onclick="delProduct('${d.id}')">Delete</button>
-     <button class="gray" onclick="toggleHide('${d.id}',${p.hidden})">${p.hidden?'Show':'Hide'}</button>
-     <button onclick="togglePin('${d.id}',${p.pinned})">${p.pinned?'Unpin':'Pin'}</button>
-    </div>
-   </div>`;
+
+   allProducts.push({
+    id:d.id,
+    ...d.data()
+   });
+
   });
+
+  loadProductCategoryFilter();
+  filterProducts();
+
  });
 }
 
+
+/* CATEGORY FILTER */
+
+function loadProductCategoryFilter(){
+
+ let select=document.getElementById("productCategoryFilter");
+
+ let oldValue=select.value;
+
+ let categories=[];
+
+ allProducts.forEach(p=>{
+
+  if(p.category && !categories.includes(p.category)){
+   categories.push(p.category);
+  }
+
+ });
+
+ categories.sort();
+
+ select.innerHTML=
+ `<option value="ALL">All Categories</option>`;
+
+ categories.forEach(c=>{
+
+  select.innerHTML+=
+  `<option value="${c}">${c}</option>`;
+
+ });
+
+ if(categories.includes(oldValue)){
+  select.value=oldValue;
+ }
+
+}
+
+
+/* FILTER */
+
+function filterProducts(){
+
+ let selected=
+ document.getElementById("productCategoryFilter").value;
+
+ let products;
+
+ if(selected==="ALL"){
+
+  products=allProducts;
+
+ }else{
+
+  products=allProducts.filter(p=>
+   p.category===selected
+  );
+
+ }
+
+ displayProducts(products);
+
+}
+
+
+/* DISPLAY */
+
+function displayProducts(products){
+
+ productList.innerHTML="";
+
+ productCount.innerText=
+ "Total Products: "+products.length;
+
+ products.forEach(p=>{
+
+  productList.innerHTML+=`
+
+  <div class="product">
+
+   <b>${p.name||""}</b><br>
+
+   <span class="small">
+    Category: ${p.category||""}
+    | Price: ₹${p.price||""}
+    | MRP: ₹${p.mrp||""}
+    | ${p.mobile||""}
+   </span>
+
+   <div class="actions">
+
+    <button onclick='editProduct("${p.id}",${JSON.stringify(p)})'>
+     Edit
+    </button>
+
+    <button class="red"
+     onclick="delProduct('${p.id}')">
+     Delete
+    </button>
+
+    <button class="gray"
+     onclick="toggleHide('${p.id}',${p.hidden||false})">
+     ${p.hidden?"Show":"Hide"}
+    </button>
+
+    <button
+     onclick="togglePin('${p.id}',${p.pinned||false})">
+     ${p.pinned?"Unpin":"Pin"}
+    </button>
+
+   </div>
+
+  </div>
+
+  `;
+
+ });
+
+}
+
+
+/* EDIT */
+
 function editProduct(id,p){
+
  pid.value=id;
  pname.value=p.name||"";
  pprice.value=p.price||"";
@@ -249,19 +391,139 @@ function editProduct(id,p){
  pmobile.value=p.mobile||"";
  pdesc.value=p.description||"";
  pcategory.value=p.category||"";
- window.scrollTo(0,0);
-}
-function delProduct(id){
- if(confirm("Delete product?"))
-  db.collection("products").doc(id).delete();
-}
-function toggleHide(id,v){
- db.collection("products").doc(id).update({hidden:!v});
-}
-function togglePin(id,v){
- db.collection("products").doc(id).update({pinned:!v});
-}
-</script>
 
+ window.scrollTo({
+  top:0,
+  behavior:"smooth"
+ });
+
+}
+
+
+/* DELETE */
+
+function delProduct(id){
+
+ if(confirm("Delete product?")){
+
+  db.collection("products")
+   .doc(id)
+   .delete();
+
+ }
+
+}
+
+
+/* HIDE / SHOW */
+
+function toggleHide(id,v){
+
+ db.collection("products")
+ .doc(id)
+ .update({
+  hidden:!v
+ });
+
+}
+
+
+/* PIN / UNPIN */
+
+function togglePin(id,v){
+
+ db.collection("products")
+ .doc(id)
+ .update({
+  pinned:!v
+ });
+
+}
+
+
+/* CATEGORY PDF */
+
+function downloadCategoryPDF(){
+
+ let selected=
+ document.getElementById("productCategoryFilter").value;
+
+ let products;
+
+ if(selected==="ALL"){
+
+  products=allProducts;
+
+ }else{
+
+  products=allProducts.filter(p=>
+   p.category===selected
+  );
+
+ }
+
+ if(products.length===0){
+
+  alert("Is category me koi product nahi hai.");
+  return;
+
+ }
+
+ const {jsPDF}=window.jspdf;
+
+ const doc=new jsPDF();
+
+ doc.setFontSize(18);
+
+ doc.text(
+  "Shree Balaji Oil Agency",
+  14,
+  18
+ );
+
+ doc.setFontSize(13);
+
+ doc.text(
+  selected==="ALL"
+   ? "All Products"
+   : "Category: "+selected,
+  14,
+  27
+ );
+
+ doc.autoTable({
+
+  startY:35,
+
+  head:[[
+   "Product Name",
+   "Price",
+   "MRP",
+   "Category"
+  ]],
+
+  body:products.map(p=>[
+   p.name||"",
+   p.price ? "Rs. "+p.price : "",
+   p.mrp ? "Rs. "+p.mrp : "",
+   p.category||""
+  ]),
+
+  theme:"grid",
+
+  styles:{
+   fontSize:10,
+   cellPadding:4
+  }
+
+ });
+
+ doc.save(
+  selected==="ALL"
+   ? "All-Products.pdf"
+   : selected+"-Products.pdf"
+ );
+
+}
 </body>
 </html>
