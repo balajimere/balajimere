@@ -52,28 +52,23 @@ header{
 
 .category{padding:10px;font-size:18px;font-weight:bold;color:#333}
 
-/* PRODUCTS */
+/* PRODUCTS GRID FIX */
 .products{
- display:grid !important;
- grid-template-columns:repeat(2,minmax(0,1fr)) !important;
- gap:10px !important;
- padding:10px !important;
- margin:0 0 90px 0 !important;
- width:100% !important;
- box-sizing:border-box !important;
+ padding:12px;
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:12px;
+ margin-bottom:20px;
+ width:100%;
+ box-sizing:border-box;
 }
 
-.products .card{
- display:block !important;
- width:100% !important;
- min-width:0 !important;
- max-width:100% !important;
- margin:0 !important;
- background:#fff !important;
- border-radius:12px !important;
- box-shadow:0 4px 12px rgba(0,0,0,.12) !important;
- overflow:hidden !important;
- position:relative !important;
+.card{
+ background:#fff;
+ border-radius:12px;
+ box-shadow:0 4px 12px rgba(0,0,0,.12);
+ overflow:hidden;
+ position:relative
 }
 
 /* OFFER BADGE */
@@ -165,7 +160,7 @@ header{
  <a href="terms.html">Terms & Conditions</a>
  <a href="privacy.html">Privacy</a>
  <a href="social.html">Social Media</a>
- <a href="home.html" class="close">❌ Close</a>
+ <a href="javascript:void(0)" onclick="toggleMenu()" class="close">❌ Close</a>
 </div>
 
 <!-- STATUS BAR -->
@@ -178,7 +173,7 @@ header{
  </select>
 </div>
 
-<div id="productList"></div>
+<div id="productList" style="padding-bottom: 70px;"></div>
 
 <div class="bottom-nav">
   <i class="fa-solid fa-box" onclick="location.href='order.html'"></i>
@@ -203,6 +198,7 @@ function toggleMenu(){
 
 /* STATUS LOAD */
 db.collection("status").orderBy("time","desc").onSnapshot(s=>{
+ const statusBar = document.getElementById("statusBar");
  statusBar.innerHTML="";
  let seen = JSON.parse(localStorage.getItem("seenStatus")||"[]");
  s.forEach(d=>{
@@ -236,6 +232,7 @@ db.collection("products").where("hidden","!=",true).onSnapshot(snap=>{
   ALL.push(p);
   cats.add(p.category||"Other");
  });
+ const catFilter = document.getElementById("catFilter");
  catFilter.innerHTML='<option value="">All Categories</option>';
  cats.forEach(c=>catFilter.innerHTML+=`<option>${c}</option>`);
  render();
@@ -243,6 +240,9 @@ db.collection("products").where("hidden","!=",true).onSnapshot(snap=>{
 
 function render(){
  let list=document.getElementById("productList");
+ let searchBox=document.getElementById("searchBox");
+ let catFilter=document.getElementById("catFilter");
+ 
  list.innerHTML="";
  let search=searchBox.value.toLowerCase();
  let cat=catFilter.value;
@@ -258,28 +258,38 @@ function render(){
   group[c].push(p);
  });
 
+ let htmlOutput = "";
+
  Object.keys(group).forEach(cat=>{
-  list.innerHTML+=`<div class="category">${cat}</div><div class="products">`;
+  htmlOutput += `<div class="category">${cat}</div><div class="products">`;
+  
   group[cat].forEach(p=>{
-   let imgs=p.images?.length?p.images:[p.image];
+   let imgs=p.images?.length?p.images:[p.image || "https://via.placeholder.com/150"];
    let slides=imgs.map(i=>`<img src="${i}" onclick="view('${p.id}')">`).join("");
-   list.innerHTML+=`
+   
+   // Escaping quotes for inline onclick JSON
+   let pJson = JSON.stringify(p).replace(/'/g, "&apos;");
+
+   htmlOutput += `
    <div class="card">
     ${p.pinned?'<div class="offer-badge">OFFER</div>':""}
     <div class="slider"><div class="slider-track">${slides}</div></div>
     <div class="info">
      <b>${p.name}</b><br>
      <span class="price">₹${p.price}</span>
-     <span class="mrp">₹${p.mrp||""}</span>
+     <span class="mrp">${p.mrp ? '₹' + p.mrp : ""}</span>
      <div class="actions">
-      <button class="cart" onclick='addCart(${JSON.stringify(p)})'>Buy Now</button>
-      <button class="share" onclick="share('${p.name}')">Share</button>
+      <button class="cart" onclick='addCart(${pJson})'>Buy Now</button>
+      <button class="share" onclick="share('${p.name.replace(/'/g, "\\'")}')">Share</button>
      </div>
     </div>
    </div>`;
   });
-  list.innerHTML+=`</div>`;
+  
+  htmlOutput += `</div>`;
  });
+
+ list.innerHTML = htmlOutput;
 }
 
 function view(id){location.href="view-product.html?id="+id;}
@@ -294,11 +304,16 @@ function addCart(p){
  localStorage.setItem("cart",JSON.stringify(c));
  location.href="cart.html";
 }
+
 function share(name){
- navigator.share?navigator.share({title:name,text:name,url:location.href}):
- window.open(`https://wa.me/?text=${name}`);
+ if (navigator.share) {
+   navigator.share({title:name,text:name,url:location.href});
+ } else {
+   window.open(`https://wa.me/?text=${encodeURIComponent(name + ' ' + location.href)}`);
+ }
 }
 </script>
 
 </body>
  </html>
+ 
