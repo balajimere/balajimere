@@ -633,7 +633,35 @@ function downloadCategoryPDF(){
 
 
   const { jsPDF } = window.jspdf;
+/* Hindi Unicode Font */
+let fontURL =
+"https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf";
 
+let fontData =
+await fetch(fontURL)
+.then(r => r.arrayBuffer());
+
+let bytes = new Uint8Array(fontData);
+let binary = "";
+
+for(let i = 0; i < bytes.length; i++){
+  binary += String.fromCharCode(bytes[i]);
+}
+
+let base64 = btoa(binary);
+
+doc.addFileToVFS(
+  "NotoSansDevanagari-Regular.ttf",
+  base64
+);
+
+doc.addFont(
+  "NotoSansDevanagari-Regular.ttf",
+  "NotoHindi",
+  "normal"
+);
+
+doc.setFont("NotoHindi", "normal");
   let doc =
     new jsPDF();
 
