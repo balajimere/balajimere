@@ -287,12 +287,12 @@ function render(){
  });
 
  Object.keys(group).forEach(cat=>{
-  list.innerHTML+=`<div class="category">${cat}</div><div class="products">`;
+  list.innerHTML+=`<div class="category">${cat}</div><div class="products" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;box-sizing:border-box;">`;
   group[cat].forEach(p=>{
    let imgs=p.images?.length?p.images:[p.image];
    let slides=imgs.map(i=>`<img src="${i}" onclick="view('${p.id}')">`).join("");
    list.innerHTML+=`
-   <div class="card">
+   <div class="card" style="width:100%;min-width:0;box-sizing:border-box;">
     ${p.pinned?'<div class="offer-badge">OFFER</div>':""}
     <div class="slider"><div class="slider-track">${slides}</div></div>
     <div class="info">
