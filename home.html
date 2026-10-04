@@ -327,46 +327,131 @@ db.collection("products").where("hidden","!=",true).onSnapshot(snap=>{
 });
 
 function render(){
+
  let list=document.getElementById("productList");
  list.innerHTML="";
+
  let search=searchBox.value.toLowerCase();
  let cat=catFilter.value;
 
- let data=ALL.filter(p=>(!cat||p.category==cat)&&p.name.toLowerCase().includes(search));
+ let data=ALL.filter(p=>
+   (!cat || p.category==cat) &&
+   (p.name || "").toLowerCase().includes(search)
+ );
 
- data.sort((a,b)=> (b.pinned===true)-(a.pinned===true));
+ data.sort((a,b)=>
+   (b.pinned===true)-(a.pinned===true)
+ );
 
  let group={};
+
  data.forEach(p=>{
-  let c=p.category||"Other";
-  if(!group[c])group[c]=[];
-  group[c].push(p);
+
+   let c=p.category || "Other";
+
+   if(!group[c]) group[c]=[];
+
+   group[c].push(p);
+
  });
+
 
  Object.keys(group).forEach(cat=>{
-  list.innerHTML+=`<div class="category">${cat}</div><div class="products" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;box-sizing:border-box;">`;
-  group[cat].forEach(p=>{
-   let imgs=p.images?.length?p.images:[p.image];
-   let slides=imgs.map(i=>`<img src="${i}" onclick="view('${p.id}')">`).join("");
-   list.innerHTML+=`
-   <div class="card" style="width:100%;min-width:0;box-sizing:border-box;">
-    ${p.pinned?'<div class="offer-badge">OFFER</div>':""}
-    <div class="slider"><div class="slider-track">${slides}</div></div>
-    <div class="info">
-     <b>${p.name}</b><br>
-     <span class="price">₹${p.price}</span>
-     <span class="mrp">₹${p.mrp||""}</span>
-     <div class="actions">
-      <button class="cart" onclick='addCart(${JSON.stringify(p)})'>Buy Now</button>
-      <button class="share" onclick="share('${p.name}')">Share</button>
-     </div>
-    </div>
-   </div>`;
-  });
-  list.innerHTML+=`</div>`;
- });
-}
 
+   list.innerHTML+=`
+     <div class="category">${cat}</div>
+
+     <div style="
+       display:flex !important;
+       flex-wrap:wrap !important;
+       width:100% !important;
+       padding:8px !important;
+       gap:8px !important;
+       box-sizing:border-box !important;
+     ">
+
+   `;
+
+
+   group[cat].forEach(p=>{
+
+     let imgs=p.images?.length ? p.images : [p.image];
+
+     let slides=imgs.map(i=>
+       `<img src="${i}" onclick="view('${p.id}')">`
+     ).join("");
+
+
+     list.innerHTML+=`
+
+       <div style="
+         width:calc(50% - 4px) !important;
+         flex:0 0 calc(50% - 4px) !important;
+         max-width:calc(50% - 4px) !important;
+         box-sizing:border-box !important;
+         background:#fff;
+         border-radius:12px;
+         box-shadow:0 4px 12px rgba(0,0,0,.12);
+         overflow:hidden;
+       ">
+
+         ${p.pinned ? '<div class="offer-badge">OFFER</div>' : ""}
+
+         <div class="slider">
+           <div class="slider-track">
+             ${slides}
+           </div>
+         </div>
+
+         <div class="info">
+
+           <b style="
+             display:block;
+             font-size:13px;
+             line-height:17px;
+             min-height:34px;
+           ">
+             ${p.name || ""}
+           </b>
+
+           <span class="price">
+             ₹${p.price}
+           </span>
+
+           <span class="mrp">
+             ₹${p.mrp || ""}
+           </span>
+
+           <div class="actions">
+
+             <button
+               class="cart"
+               onclick='addCart(${JSON.stringify(p)})'>
+               Buy Now
+             </button>
+
+             <button
+               class="share"
+               onclick="share('${p.name}')">
+               Share
+             </button>
+
+           </div>
+
+         </div>
+
+       </div>
+
+     `;
+
+   });
+
+
+   list.innerHTML+=`</div>`;
+
+ });
+
+}
 function view(id){location.href="view-product.html?id="+id;}
 function isLogin(){return localStorage.getItem("user");}
 
